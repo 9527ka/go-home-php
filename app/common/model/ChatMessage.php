@@ -51,6 +51,6 @@ class ChatMessage extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id')
-            ->field('id,nickname,avatar');
+            ->field('id,nickname,avatar,user_code');
     }
 }

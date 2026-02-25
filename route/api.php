@@ -14,6 +14,7 @@ Route::group('api', function () {
     Route::post('auth/register', 'api/Auth/register');
     Route::post('auth/login', 'api/Auth/login');
     Route::post('auth/apple-signin', 'api/Auth/appleSignIn');
+    Route::post('auth/quick-login', 'api/Auth/quickLogin');
 
     // ---- 公开接口（不需要登录）----
     Route::get('post/list', 'api/Post/list');
@@ -26,6 +27,8 @@ Route::group('api', function () {
         // 用户
         Route::get('auth/profile', 'api/Auth/profile');
         Route::post('auth/update', 'api/Auth/update');
+        Route::post('auth/change-account', 'api/Auth/changeAccount');
+        Route::post('auth/change-password', 'api/Auth/changePassword');
         Route::post('auth/delete-account', 'api/Auth/deleteAccount');
 
         // 启事
@@ -56,6 +59,32 @@ Route::group('api', function () {
         Route::get('notification/list', 'api/Notification/list');
         Route::get('notification/unread', 'api/Notification/unread');
         Route::post('notification/read', 'api/Notification/read');
+
+        // 好友
+        Route::get('friend/search', 'api/Friend/search');
+        Route::post('friend/request', 'api/Friend/request');
+        Route::get('friend/requests', 'api/Friend/requests');
+        Route::get('friend/request-count', 'api/Friend/requestCount');
+        Route::post('friend/accept', 'api/Friend/accept');
+        Route::post('friend/reject', 'api/Friend/reject');
+        Route::get('friend/list', 'api/Friend/list');
+        Route::post('friend/remove', 'api/Friend/remove');
+
+        // 群组
+        Route::post('group/create', 'api/Group/create');
+        Route::get('group/list', 'api/Group/list');
+        Route::get('group/detail', 'api/Group/detail');
+        Route::post('group/update', 'api/Group/update');
+        Route::post('group/invite', 'api/Group/invite');
+        Route::post('group/leave', 'api/Group/leave');
+        Route::post('group/kick', 'api/Group/kick');
+        Route::post('group/disband', 'api/Group/disband');
+        Route::get('group/messages', 'api/Group/messages');
+
+        // 私聊 / 会话
+        Route::get('pm/history', 'api/Pm/history');
+        Route::get('pm/conversations', 'api/Pm/conversations');
+        Route::post('pm/read', 'api/Pm/read');
 
     })->middleware(\app\api\middleware\AuthCheck::class);
 

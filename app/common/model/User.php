@@ -20,6 +20,42 @@ class User extends Model
     protected $hidden = ['password', 'apple_id', 'deleted_at'];
 
     /**
+     * 模型事件：创建前自动生成 user_code
+     */
+    public static function onBeforeInsert(self $user): void
+    {
+        if (empty($user->user_code)) {
+            $user->user_code = self::generateUserCode();
+        }
+    }
+
+    /**
+     * 生成唯一用户编号：GH + 8位大写字母数字
+     * 格式示例：GH5K8M2NXR
+     */
+    public static function generateUserCode(): string
+    {
+        // 去掉容易混淆的字符 0/O, 1/I/L
+        $chars = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+        $maxAttempts = 10;
+
+        for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
+            $code = 'GH';
+            for ($i = 0; $i < 8; $i++) {
+                $code .= $chars[random_int(0, strlen($chars) - 1)];
+            }
+
+            // 检查唯一性
+            if (!self::where('user_code', $code)->find()) {
+                return $code;
+            }
+        }
+
+        // 极端情况：加时间戳后缀保证唯一
+        return 'GH' . strtoupper(substr(md5((string)microtime(true)), 0, 8));
+    }
+
+    /**
      * 密码写入自动加密（Apple 登录用户可能无密码）
      */
     public function setPasswordAttr(?string $value): ?string
