@@ -109,6 +109,9 @@ class Friend extends BaseApi
             'status'  => 0,
         ]);
 
+        // WebSocket 推送通知给对方
+        $this->pushFriendRequest($toId, $userId);
+
         return $this->success(null, '请求已发送');
     }
 
@@ -190,6 +193,9 @@ class Friend extends BaseApi
 
         // 创建双向好友关系
         $this->createFriendship($userId, (int)$req->from_id);
+
+        // WebSocket 推送通知给对方（好友请求被接受）
+        $this->pushFriendAccepted((int)$req->from_id, $userId);
 
         return $this->success(null, '已添加好友');
     }
@@ -299,6 +305,92 @@ class Friend extends BaseApi
                 'friend_id'  => $userA,
                 'created_at' => $now,
             ]);
+        }
+    }
+
+    /**
+     * 推送好友请求通知（WebSocket）
+     * @param int $toUserId 接收方用户 ID
+     * @param int $fromUserId 发送方用户 ID
+     */
+    private function pushFriendRequest(int $toUserId, int $fromUserId): void
+    {
+        try {
+            // 获取发送方用户信息
+            $fromUser = User::where('id', $fromUserId)
+                ->field('id,nickname,avatar')
+                ->find();
+
+            if (!$fromUser) {
+                return;
+            }
+
+            // 通过 Workerman 内部通信推送（需要 WebSocket 服务运行）
+            $data = json_encode([
+                'type' => 'friend_request',
+                'from_user_id' => $fromUserId,
+                'from_nickname' => $fromUser['nickname'] ?? '',
+                'from_avatar' => $fromUser['avatar'] ?? '',
+                'timestamp' => time(),
+            ], JSON_UNESCAPED_UNICODE);
+
+            // 使用 AsyncTcpConnection 向 WebSocket 服务发送指令
+            // 由于当前架构是独立的 WebSocket 服务，这里使用内部端口通信
+            $this->sendToWebSocket($toUserId, $data);
+        } catch (\Exception $e) {
+            // 推送失败不影响主流程
+            trace('[Friend] pushFriendRequest error: ' . $e->getMessage(), 'error');
+        }
+    }
+
+    /**
+     * 推送好友请求被接受通知（WebSocket）
+     * @param int $toUserId 接收方用户 ID（请求发送方）
+     * @param int $acceptedUserId 接受方用户 ID
+     */
+    private function pushFriendAccepted(int $toUserId, int $acceptedUserId): void
+    {
+        try {
+            $data = json_encode([
+                'type' => 'friend_accepted',
+                'accepted_user_id' => $acceptedUserId,
+                'timestamp' => time(),
+            ], JSON_UNESCAPED_UNICODE);
+
+            $this->sendToWebSocket($toUserId, $data);
+        } catch (\Exception $e) {
+            trace('[Friend] pushFriendAccepted error: ' . $e->getMessage(), 'error');
+        }
+    }
+
+    /**
+     * 向 WebSocket 服务发送消息
+     * 使用 fsockopen 直接连接到 WebSocket 内部端口
+     */
+    private function sendToWebSocket(int $userId, string $data): void
+    {
+        // 方案1: 使用内部 TCP 端口通信（需要 WebSocket 服务开启内部端口）
+        // 方案2: 使用 Redis Pub/Sub
+        // 方案3: 直接调用 AsyncTcpConnection
+        
+        // 这里使用简单方案: 尝试连接内部端口 (127.0.0.1:7272)
+        // 如果 WebSocket 服务未开启内部端口，此方法静默失败
+        try {
+            $internalHost = '127.0.0.1';
+            $internalPort = 7272; // WebSocket 内部通信端口
+            
+            $socket = @fsockopen($internalHost, $internalPort, $errno, $errstr, 1);
+            if ($socket) {
+                $message = json_encode([
+                    'cmd' => 'send_to_user',
+                    'user_id' => $userId,
+                    'data' => $data,
+                ]);
+                fwrite($socket, $message . "\n");
+                fclose($socket);
+            }
+        } catch (\Exception $e) {
+            // 静默失败，不影响主流程
         }
     }
 }

@@ -51,8 +51,13 @@ class User extends Model
             }
         }
 
-        // 极端情况：加时间戳后缀保证唯一
-        return 'GH' . strtoupper(substr(md5((string)microtime(true)), 0, 8));
+        // 极端情况：用时间戳 + 随机数从同一字符集生成
+        $fallback = 'GH';
+        $seed = md5((string)microtime(true) . random_int(0, 99999));
+        for ($i = 0; $i < 8; $i++) {
+            $fallback .= $chars[ord($seed[$i]) % strlen($chars)];
+        }
+        return $fallback;
     }
 
     /**

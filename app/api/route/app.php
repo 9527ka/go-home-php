@@ -57,4 +57,30 @@ Route::group('', function () {
     Route::get('notification/unread', 'Notification/unread');
     Route::post('notification/read', 'Notification/read');
 
+    // 好友
+    Route::get('friend/search', 'Friend/search');
+    Route::post('friend/request', 'Friend/request');
+    Route::get('friend/requests', 'Friend/requests');
+    Route::get('friend/request-count', 'Friend/requestCount');
+    Route::post('friend/accept', 'Friend/accept');
+    Route::post('friend/reject', 'Friend/reject');
+    Route::get('friend/list', 'Friend/list');
+    Route::post('friend/remove', 'Friend/remove');
+
+    // 群组
+    Route::post('group/create', 'Group/create');
+    Route::get('group/list', 'Group/list');
+    Route::get('group/detail', 'Group/detail');
+    Route::post('group/update', 'Group/update');
+    Route::post('group/invite', 'Group/invite');
+    Route::post('group/leave', 'Group/leave');
+    Route::post('group/kick', 'Group/kick');
+    Route::post('group/disband', 'Group/disband');
+    Route::get('group/messages', 'Group/messages');
+
+    // 私信
+    Route::get('pm/history', 'Pm/history');
+    Route::get('pm/conversations', 'Pm/conversations');
+    Route::post('pm/read', 'Pm/read');
+
 })->middleware(\app\api\middleware\AuthCheck::class);

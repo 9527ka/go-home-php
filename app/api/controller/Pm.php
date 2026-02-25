@@ -69,18 +69,18 @@ class Pm extends BaseApi
         $userId = $this->getUserId();
         $conversations = [];
 
-        // 1. 私聊会话 — 找出所有有聊天记录的好友
+        // 1. 私聊会话 — 找出所有有聊天记录的好友（参数绑定防注入）
         $privateSql = "
             SELECT
-                CASE WHEN from_id = {$userId} THEN to_id ELSE from_id END AS friend_id,
+                CASE WHEN from_id = ? THEN to_id ELSE from_id END AS friend_id,
                 MAX(id) AS last_msg_id
             FROM private_messages
-            WHERE from_id = {$userId} OR to_id = {$userId}
+            WHERE from_id = ? OR to_id = ?
             GROUP BY friend_id
             ORDER BY last_msg_id DESC
             LIMIT 50
         ";
-        $privateConvs = Db::query($privateSql);
+        $privateConvs = Db::query($privateSql, [$userId, $userId, $userId]);
 
         foreach ($privateConvs as $conv) {
             $friendId = (int)$conv['friend_id'];

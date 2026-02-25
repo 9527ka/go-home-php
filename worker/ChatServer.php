@@ -137,6 +137,26 @@ function broadcast(array $data): void
 }
 
 /**
+ * 向指定用户发送消息（通过 userId）
+ * @param int $userId 目标用户 ID
+ * @param array $data 消息内容
+ * @return bool 是否发送成功（用户在线）
+ */
+function sendToUser(int $userId, array $data): bool
+{
+    global $connections;
+    $json = json_encode($data, JSON_UNESCAPED_UNICODE);
+    $sent = false;
+    foreach ($connections as $conn) {
+        if (isset($conn->userId) && $conn->userId === $userId) {
+            $conn->send($json);
+            $sent = true;
+        }
+    }
+    return $sent;
+}
+
+/**
  * 广播在线人数
  */
 function broadcastOnlineCount(): void
@@ -500,6 +520,34 @@ $ws->onClose = function (TcpConnection $connection) use (&$connections, &$ipConn
 // ----- onError -----
 $ws->onError = function (TcpConnection $connection, $code, $msg) {
     echo "[Error] #{$connection->id}: [{$code}] {$msg}\n";
+};
+
+// =====================================================================
+//  内部通信 Worker（接收 API 的推送指令）
+// =====================================================================
+
+$internal = new Worker('text://0.0.0.0:7272');
+$internal->name = 'GoHomeInternal';
+
+$internal->onMessage = function (TcpConnection $connection, $data) use (&$connections) {
+    $cmd = json_decode($data, true);
+    if (!$cmd || !isset($cmd['cmd'])) {
+        return;
+    }
+
+    // 处理 send_to_user 指令
+    if ($cmd['cmd'] === 'send_to_user' && isset($cmd['user_id'], $cmd['data'])) {
+        $userId = (int)$cmd['user_id'];
+        $pushData = $cmd['data'];
+        
+        // 遍历所有连接，找到目标用户并发送
+        foreach ($connections as $conn) {
+            if (isset($conn->userId) && $conn->userId === $userId) {
+                $conn->send($pushData);
+                echo "[Internal] Pushed to userId={$userId}\n";
+            }
+        }
+    }
 };
 
 Worker::runAll();
