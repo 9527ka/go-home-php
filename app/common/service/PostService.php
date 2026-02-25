@@ -426,9 +426,9 @@ class PostService
     protected static function maskChildInfo(array $item): array
     {
         // 地址只显示到区级
-        if (!empty($item['lost_address'])) {
-            $item['lost_address'] = '（地址已隐藏，请联系发布者）';
-        }
+        // if (!empty($item['lost_address'])) {
+        //     $item['lost_address'] = '（地址已隐藏，请联系发布者）';
+        // }
 
         // 经纬度不对外暴露
         $item['lost_longitude'] = null;
@@ -509,6 +509,6 @@ class PostService
     protected static function getThumbUrl(string $url): string
     {
         $info = pathinfo($url);
-        return ($info['dirname'] ?? '') . '/' . ($info['filename'] ?? '') . '_thumb.' . ($info['extension'] ?? 'jpg');
+        return 'https://go-home.dengshop.com'.($info['dirname'] ?? '') . '/' . ($info['filename'] ?? '') . '_thumb.' . ($info['extension'] ?? 'jpg');
     }
 }
