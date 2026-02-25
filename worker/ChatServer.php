@@ -75,7 +75,7 @@ function getUserInfo(int $userId): ?array
 {
     try {
         $user = Db::table('users')
-            ->field('id, nickname, avatar')
+            ->field('id, nickname, avatar, user_code')
             ->where('id', $userId)
             ->where('status', 1)
             ->whereNull('deleted_at')
@@ -351,6 +351,7 @@ function handleMessage(TcpConnection $connection, array $msg): void
         'type'       => 'message',
         'id'         => $msgId,
         'user_id'    => $connection->userId,
+        'user_code'  => $connection->userInfo['user_code'] ?? '',
         'nickname'   => $connection->userInfo['nickname'] ?? '',
         'avatar'     => $connection->userInfo['avatar'] ?? '',
         'msg_type'   => $msgType,

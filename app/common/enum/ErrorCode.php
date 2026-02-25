@@ -47,6 +47,20 @@ class ErrorCode
     const FEEDBACK_TOO_SHORT    = 3011; // 反馈内容过短
     const ACCOUNT_DELETE_FAILED = 3013; // 注销失败
 
+    // ---- 好友相关 ----
+    const FRIEND_SELF              = 3020;
+    const FRIEND_ALREADY           = 3021;
+    const FRIEND_REQUEST_PENDING   = 3022;
+    const FRIEND_REQUEST_NOT_FOUND = 3023;
+    const FRIEND_NOT_FOUND         = 3024;
+
+    // ---- 群组相关 ----
+    const GROUP_NOT_FOUND          = 3030;
+    const GROUP_NOT_MEMBER         = 3031;
+    const GROUP_NO_PERMISSION      = 3032;
+    const GROUP_OWNER_CANNOT_LEAVE = 3033;
+    const GROUP_FULL               = 3034;
+
     // ========== 系统相关 4xxx ==========
     const UPLOAD_FAIL           = 4001;
     const SYSTEM_ERROR          = 4002;
@@ -86,6 +100,17 @@ class ErrorCode
         self::CHILD_ADDRESS_DENIED  => '为保护未成人，不允许填写精确住址',
         self::FEEDBACK_TOO_SHORT    => '反馈内容至少5个字',
         self::ACCOUNT_DELETE_FAILED => '账号注销失败，请稍后重试',
+
+        self::FRIEND_SELF              => '不能添加自己为好友',
+        self::FRIEND_ALREADY           => '已经是好友了',
+        self::FRIEND_REQUEST_PENDING   => '已发送过请求，请等待对方处理',
+        self::FRIEND_REQUEST_NOT_FOUND => '请求不存在或已处理',
+        self::FRIEND_NOT_FOUND         => '好友关系不存在',
+        self::GROUP_NOT_FOUND          => '群组不存在',
+        self::GROUP_NOT_MEMBER         => '您不是该群成员',
+        self::GROUP_NO_PERMISSION      => '无权执行此操作',
+        self::GROUP_OWNER_CANNOT_LEAVE => '群主不能退出，请先解散群组',
+        self::GROUP_FULL               => '群组人数已满',
 
         self::UPLOAD_FAIL           => '文件上传失败',
         self::SYSTEM_ERROR          => '系统异常，请稍后重试',

@@ -32,6 +32,10 @@ class RateLimit
         'api/upload/image'      => 20,  // 上传：每分钟20次
         'api/upload/images'     => 10,  // 批量上传：每分钟10次
         'api/post/create'       => 5,   // 发布：每分钟5次
+        'api/auth/quick-login'  => 10,  // 快速登录：每分钟10次
+        'auth/quick-login'      => 10,
+        'api/friend/request'    => 20,  // 好友请求：每分钟20次
+        'api/group/create'      => 5,   // 创建群组：每分钟5次
     ];
 
     public function handle(Request $request, \Closure $next): Response
