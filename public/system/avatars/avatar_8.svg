@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <circle cx="100" cy="100" r="100" fill="#A855F7"/>
+  <!-- Hair suggestion - longer hair flowing down sides -->
+  <path d="M72 58 C72 42, 80 28, 100 28 C120 28, 128 42, 128 58 C130 62, 132 75, 130 88 C130 92, 128 96, 126 98 L126 98 C134 85, 134 65, 128 52 C122 38, 110 32, 100 32 C90 32, 78 38, 72 52 C66 65, 66 85, 74 98 L74 98 C72 96, 70 92, 70 88 C68 75, 70 62, 72 58 Z" fill="white"/>
+  <!-- Head -->
+  <circle cx="100" cy="68" r="26" fill="white"/>
+  <!-- Hair over head - longer style -->
+  <path d="M74 62 C74 42, 84 30, 100 30 C116 30, 126 42, 126 62 C126 55, 120 38, 100 38 C80 38, 74 55, 74 62 Z" fill="white"/>
+  <!-- Side hair strands -->
+  <path d="M74 62 C72 72, 68 88, 66 105 C65 112, 66 116, 68 112 C70 105, 72 92, 74 80 Z" fill="white"/>
+  <path d="M126 62 C128 72, 132 88, 134 105 C135 112, 134 116, 132 112 C130 105, 128 92, 126 80 Z" fill="white"/>
+  <!-- Body - feminine narrower shoulders -->
+  <path d="M100 94 C100 94, 66 106, 58 132 C52 150, 54 168, 58 185 L142 185 C146 168, 148 150, 142 132 C134 106, 100 94, 100 94 Z" fill="white"/>
+</svg>

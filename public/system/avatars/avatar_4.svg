@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
+  <circle cx="100" cy="100" r="100" fill="#8B5CF6"/>
+  <!-- Head -->
+  <circle cx="100" cy="70" r="28" fill="white"/>
+  <!-- Body - masculine broader shoulders -->
+  <path d="M100 98 C100 98, 58 108, 48 135 C42 152, 44 170, 50 185 L150 185 C156 170, 158 152, 152 135 C142 108, 100 98, 100 98 Z" fill="white"/>
+</svg>

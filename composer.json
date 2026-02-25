@@ -1,0 +1,21 @@
+{
+    "name": "gohome/server",
+    "description": "回家了么 - 寻人平台服务端",
+    "type": "project",
+    "require": {
+        "php": ">=8.0",
+        "topthink/framework": "^6.1",
+        "topthink/think-orm": "^2.0",
+        "topthink/think-view": "^2.0",
+        "topthink/think-multi-app": "^1.0",
+        "topthink/think-filesystem": "^1.0",
+        "firebase/php-jwt": "^6.0",
+        "topthink/think-validate": "^2.0",
+        "workerman/workerman": "^4.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "app\\": "app/"
+        }
+    }
+}

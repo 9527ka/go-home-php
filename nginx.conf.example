@@ -1,0 +1,130 @@
+# ============================================
+# 《回家了么》Nginx 配置示例
+# ============================================
+
+server {
+    listen 80;
+    server_name api.gohome.com;
+
+    # ⚠️ 上线后取消注释启用 HTTPS 重定向
+    # return 301 https://$server_name$request_uri;
+
+    root /var/www/go-home/server/public;
+    index index.php index.html;
+
+    # 日志
+    access_log /var/log/nginx/gohome_access.log;
+    error_log  /var/log/nginx/gohome_error.log;
+
+    # ⚠️ 安全头
+    add_header X-Frame-Options "DENY" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # 上传大小限制
+    client_max_body_size 10m;
+
+    # 静态资源缓存
+    location ~* \.(jpg|jpeg|png|gif|webp|ico|css|js)$ {
+        expires 7d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # 上传目录 — 禁止执行 PHP
+    location /uploads/ {
+        location ~ \.php$ {
+            deny all;
+        }
+    }
+
+    # ThinkPHP 路由
+    location / {
+        if (!-e $request_filename) {
+            rewrite ^(.*)$ /index.php?s=$1 last;
+            break;
+        }
+    }
+
+    # PHP-FPM
+    location ~ \.php$ {
+        fastcgi_pass   127.0.0.1:9000;
+        fastcgi_index  index.php;
+        fastcgi_param  SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include        fastcgi_params;
+
+        # 超时设置
+        fastcgi_connect_timeout 60;
+        fastcgi_send_timeout    60;
+        fastcgi_read_timeout    60;
+    }
+
+    # 禁止访问隐藏文件
+    location ~ /\. {
+        deny all;
+    }
+
+    # 禁止访问敏感文件
+    location ~* (\.env|\.git|composer\.json|composer\.lock) {
+        deny all;
+    }
+}
+
+# ============================================
+# WebSocket (WSS) 代理配置
+# ============================================
+# 用于将 wss://api.gohome.com/ws 转发到 Workerman 的 ws://127.0.0.1:8282
+#
+# 在 HTTPS server 块内添加以下 location 段:
+#
+#     # WebSocket 代理 — 聊天室
+#     location /ws {
+#         proxy_pass http://127.0.0.1:8282;
+#         proxy_http_version 1.1;
+#         proxy_set_header Upgrade $http_upgrade;
+#         proxy_set_header Connection "Upgrade";
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#
+#         # 超时设置（WebSocket 长连接需要较长超时）
+#         proxy_read_timeout 3600s;
+#         proxy_send_timeout 3600s;
+#
+#         # 禁用缓冲
+#         proxy_buffering off;
+#     }
+#
+# 客户端连接地址: wss://api.gohome.com/ws
+# Flutter 中 ApiConfig.wsProdUrl 应设为: 'wss://api.gohome.com/ws'
+
+# ============================================
+# HTTPS 配置（上线时启用）
+# ============================================
+# server {
+#     listen 443 ssl http2;
+#     server_name api.gohome.com;
+#
+#     ssl_certificate     /etc/ssl/certs/gohome.pem;
+#     ssl_certificate_key /etc/ssl/private/gohome.key;
+#     ssl_protocols       TLSv1.2 TLSv1.3;
+#     ssl_ciphers         HIGH:!aNULL:!MD5;
+#
+#     # WebSocket 代理 — 聊天室
+#     location /ws {
+#         proxy_pass http://127.0.0.1:8282;
+#         proxy_http_version 1.1;
+#         proxy_set_header Upgrade $http_upgrade;
+#         proxy_set_header Connection "Upgrade";
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#         proxy_read_timeout 3600s;
+#         proxy_send_timeout 3600s;
+#         proxy_buffering off;
+#     }
+#
+#     # ... 其余配置同 HTTP 块 ...
+# }
