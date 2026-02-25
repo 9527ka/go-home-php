@@ -5,3 +5,4 @@ runtime/
 public/uploads/
 .claude/
 .qoder
+.DS_Store

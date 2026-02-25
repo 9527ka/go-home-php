@@ -1079,7 +1079,7 @@ let currentReportId = null;
 // Status maps
 const POST_STATUS = { 0: '待审核', 1: '已发布', 2: '已找到', 3: '已关闭', 4: '已驳回' };
 const POST_STATUS_CLASS = { 0: 'pending', 1: 'active', 2: 'found', 3: 'closed', 4: 'rejected' };
-const CATEGORY = { 1: '宠物', 2: '成年人', 3: '儿童', 4: '其它物品' };
+const CATEGORY = { 1: '宠物', 2: '老人', 3: '儿童', 4: '其它物品' };
 const CATEGORY_CLASS = { 1: 'pet', 2: 'elder', 3: 'child', 4: 'other' };
 const CATEGORY_ICON = { 1: '🐾', 2: '👴', 3: '👶', 4: '📦' };
 const REPORT_TARGET = { 1: '启事', 2: '线索', 3: '用户' };
@@ -1592,6 +1592,9 @@ async function loadUserList(page) {
 
   if (res.code !== 0) return toast(res.msg, 'error');
   userData = res.data;
+
+  // Update stats
+  document.getElementById('statsTotal').textContent = userData.total || 0;
 
   if (!userData.list || userData.list.length === 0) {
     empty.classList.remove('hidden');
