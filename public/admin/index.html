@@ -1595,9 +1595,6 @@ async function loadUserList(page) {
   if (res.code !== 0) return toast(res.msg, 'error');
   userData = res.data;
 
-  // Update stats
-  document.getElementById('statsTotal').textContent = userData.total || 0;
-
   if (!userData.list || userData.list.length === 0) {
     empty.classList.remove('hidden');
     return;

@@ -79,19 +79,19 @@ class ReportManage
         // 举报有效且目标为启事：屏蔽帖子，待用户修改后重新审核
         if ($status === Report::STATUS_VALID && $report->target_type === Report::TARGET_POST) {
             $post = Post::find($report->target_id);
-            if ($post && $post->status !== PostStatus::REJECTED) {
-                $post->status = PostStatus::REJECTED;
+            if ($post && !in_array($post->status, [PostStatus::REJECTED, PostStatus::REPORT_BLOCKED])) {
+                $post->status = PostStatus::REPORT_BLOCKED;
                 $post->audit_remark = '因用户举报被屏蔽' . ($remark ? '：' . $remark : '') . '。请修改后重新提交审核。';
                 $post->audited_by = $adminId;
                 $post->audited_at = date('Y-m-d H:i:s');
                 $post->save();
 
-                // 通知发布者
-                NotifyService::notifyAuditReject(
+                // 通知发布者（使用举报违规类型，区别于普通审核驳回）
+                NotifyService::notifyReportViolation(
                     $post->user_id,
                     $post->id,
                     $post->name,
-                    '您的启事因被举报违规已被屏蔽' . ($remark ? '：' . $remark : '') . '。请修改后重新提交'
+                    $remark ? '原因：' . $remark . '。' : ''
                 );
 
                 // 审计日志

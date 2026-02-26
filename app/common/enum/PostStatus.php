@@ -5,18 +5,20 @@ namespace app\common\enum;
 
 class PostStatus
 {
-    const PENDING  = 0; // 待审核
-    const ACTIVE   = 1; // 已发布
-    const FOUND    = 2; // 已找到
-    const CLOSED   = 3; // 已关闭
-    const REJECTED = 4; // 审核驳回
+    const PENDING        = 0; // 待审核
+    const ACTIVE         = 1; // 已发布
+    const FOUND          = 2; // 已找到
+    const CLOSED         = 3; // 已关闭
+    const REJECTED       = 4; // 审核驳回
+    const REPORT_BLOCKED = 5; // 举报屏蔽
 
     const MAP = [
-        self::PENDING  => '待审核',
-        self::ACTIVE   => '已发布',
-        self::FOUND    => '已找到',
-        self::CLOSED   => '已关闭',
-        self::REJECTED => '审核驳回',
+        self::PENDING        => '待审核',
+        self::ACTIVE         => '已发布',
+        self::FOUND          => '已找到',
+        self::CLOSED         => '已关闭',
+        self::REJECTED       => '审核驳回',
+        self::REPORT_BLOCKED => '举报屏蔽',
     ];
 
     public static function isValid(int $value): bool

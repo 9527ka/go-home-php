@@ -43,7 +43,11 @@ class AuthCheck
     {
         // ⚠️ 安全修复：精确匹配白名单，防止 api/auth/loginXXX 绕过
         $path = strtolower(trim($request->pathinfo(), '/'));
-        if (in_array($path, $this->except, true)) {
+        $isPublic = in_array($path, $this->except, true);
+
+        // 公开接口：尝试解析token（可选），以便识别登录用户身份
+        if ($isPublic) {
+            $this->tryParseToken($request);
             return $next($request);
         }
 
@@ -81,5 +85,37 @@ class AuthCheck
         }
 
         return $next($request);
+    }
+
+    /**
+     * 尝试解析 Token（不强制要求登录）
+     * 用于公开接口中识别已登录用户，例如帖子详情接口需要识别帖子所有者
+     */
+    protected function tryParseToken(Request $request): void
+    {
+        try {
+            $token = $request->header('Authorization', '');
+            if (str_starts_with($token, 'Bearer ')) {
+                $token = substr($token, 7);
+            }
+
+            if (empty($token)) {
+                return;
+            }
+
+            $payload = AuthService::parseToken($token);
+            $userId = (int)($payload['user_id'] ?? 0);
+            if ($userId <= 0) {
+                return;
+            }
+
+            $user = User::find($userId);
+            if ($user && $user->isNormal()) {
+                $request->userId = $userId;
+                $request->userRole = $payload['role'] ?? 'user';
+            }
+        } catch (\Exception $e) {
+            // 公开接口解析失败不影响正常访问
+        }
     }
 }

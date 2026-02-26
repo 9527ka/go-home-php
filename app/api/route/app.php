@@ -16,12 +16,13 @@ Route::post('auth/quick-login', 'Auth/quickLogin');
 // ---- 公开接口（不需要登录）----
 Route::get('health', 'Health/check');
 Route::get('post/list', 'Post/list');
-Route::get('post/detail', 'Post/detail');
 Route::get('clue/list', 'Clue/list');
 Route::get('chat/history', 'Chat/history');
 
 // ---- 需要登录的接口 ----
 Route::group('', function () {
+    // 帖子详情（公开接口，但需走AuthCheck以识别登录用户身份，在白名单中不强制登录）
+    Route::get('post/detail', 'Post/detail');
     // 用户
     Route::get('auth/profile', 'Auth/profile');
     Route::post('auth/update', 'Auth/update');

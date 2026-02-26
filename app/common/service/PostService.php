@@ -304,10 +304,10 @@ class PostService
             throw new BusinessException(ErrorCode::POST_NO_PERMISSION);
         }
 
-        // 只允许编辑待审核或被驳回的启事
-        $editableStatuses = [PostStatus::PENDING, PostStatus::REJECTED];
+        // 只允许编辑待审核、被驳回或举报屏蔽的启事
+        $editableStatuses = [PostStatus::PENDING, PostStatus::REJECTED, PostStatus::REPORT_BLOCKED];
         if (!in_array($post->status, $editableStatuses)) {
-            throw new BusinessException(ErrorCode::POST_ALREADY_CLOSED, '当前状态不允许编辑，仅待审核或被驳回的启事可编辑');
+            throw new BusinessException(ErrorCode::POST_ALREADY_CLOSED, '当前状态不允许编辑，仅待审核、被驳回或举报屏蔽的启事可编辑');
         }
 
         // 儿童安全校验

@@ -58,6 +58,20 @@ class NotifyService
     }
 
     /**
+     * 举报违规通知（通知帖子作者其帖子因举报被屏蔽）
+     */
+    public static function notifyReportViolation(int $userId, int $postId, string $postName, string $reason): void
+    {
+        self::send(
+            $userId,
+            Notification::TYPE_REPORT_VIOLATION,
+            '您的启事因举报违规已被屏蔽',
+            "您发布的「{$postName}」因被举报违规已被屏蔽。{$reason}请修改后重新提交审核。",
+            $postId
+        );
+    }
+
+    /**
      * 新线索通知
      */
     public static function notifyNewClue(int $userId, int $postId, string $postName): void
