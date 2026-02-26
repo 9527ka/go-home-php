@@ -509,6 +509,6 @@ class PostService
     protected static function getThumbUrl(string $url): string
     {
         $info = pathinfo($url);
-        return 'https://go-home.dengshop.com'.($info['dirname'] ?? '') . '/' . ($info['filename'] ?? '') . '_thumb.' . ($info['extension'] ?? 'jpg');
+        return ($info['dirname'] ?? '') . '/' . ($info['filename'] ?? '') . '_thumb.' . ($info['extension'] ?? 'jpg');
     }
 }

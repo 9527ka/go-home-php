@@ -40,8 +40,9 @@ class PostImage extends Model
         if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
             return $url;
         }
-        // 添加https前缀
-        return 'https://home.dengshop.com' . $url;
+        // 使用环境变量中的域名前缀
+        $cdnUrl = env('APP_CDN_URL', 'https://home.dengshop.com');
+        return $cdnUrl . $url;
     }
 
     public function post()

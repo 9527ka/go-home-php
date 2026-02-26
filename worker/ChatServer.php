@@ -387,6 +387,293 @@ function handleMessage(TcpConnection $connection, array $msg): void
 }
 
 /**
+ * 保存私聊消息到数据库
+ */
+function savePrivateMessage(int $fromId, int $toId, string $content, string $msgType = 'text', string $mediaUrl = '', string $thumbUrl = '', ?array $mediaInfo = null): ?int
+{
+    try {
+        $data = [
+            'from_id'    => $fromId,
+            'to_id'      => $toId,
+            'msg_type'   => $msgType,
+            'content'    => $content,
+            'media_url'  => $mediaUrl,
+            'thumb_url'  => $thumbUrl,
+            'media_info' => $mediaInfo ? json_encode($mediaInfo, JSON_UNESCAPED_UNICODE) : null,
+            'is_read'    => 0,
+            'created_at' => date('Y-m-d H:i:s'),
+        ];
+        return (int)Db::table('private_messages')->insertGetId($data);
+    } catch (\Exception $e) {
+        echo "[DB Error] savePrivateMessage: {$e->getMessage()}\n";
+        return null;
+    }
+}
+
+/**
+ * 保存群聊消息到数据库
+ */
+function saveGroupMessage(int $userId, int $groupId, string $content, string $msgType = 'text', string $mediaUrl = '', string $thumbUrl = '', ?array $mediaInfo = null): ?int
+{
+    try {
+        $data = [
+            'user_id'    => $userId,
+            'group_id'   => $groupId,
+            'msg_type'   => $msgType,
+            'content'    => $content,
+            'media_url'  => $mediaUrl,
+            'thumb_url'  => $thumbUrl,
+            'media_info' => $mediaInfo ? json_encode($mediaInfo, JSON_UNESCAPED_UNICODE) : null,
+            'created_at' => date('Y-m-d H:i:s'),
+        ];
+        return (int)Db::table('group_messages')->insertGetId($data);
+    } catch (\Exception $e) {
+        echo "[DB Error] saveGroupMessage: {$e->getMessage()}\n";
+        return null;
+    }
+}
+
+/**
+ * 处理私聊消息
+ */
+function handlePrivateMessage(TcpConnection $connection, array $msg): void
+{
+    // 未登录
+    if (!$connection->userId) {
+        sendError($connection, '请先登录');
+        return;
+    }
+
+    // 频率限制
+    if (!checkRateLimit($connection)) {
+        sendError($connection, '发送太快了，请稍后再试');
+        return;
+    }
+
+    $toId = (int)($msg['to_id'] ?? 0);
+    if ($toId <= 0) {
+        sendError($connection, '接收者 ID 无效');
+        return;
+    }
+
+    // 验证好友关系
+    try {
+        $isFriend = Db::table('friendships')
+            ->where('user_id', $connection->userId)
+            ->where('friend_id', $toId)
+            ->find();
+        if (!$isFriend) {
+            sendError($connection, '对方不是您的好友');
+            return;
+        }
+    } catch (\Exception $e) {
+        echo "[DB Error] checkFriendship: {$e->getMessage()}\n";
+        sendError($connection, '服务器错误');
+        return;
+    }
+
+    // 消息类型
+    $msgType = $msg['msg_type'] ?? 'text';
+    if (!in_array($msgType, ALLOWED_MSG_TYPES, true)) {
+        $msgType = 'text';
+    }
+
+    $content   = trim($msg['content'] ?? '');
+    $mediaUrl  = trim($msg['media_url'] ?? '');
+    $thumbUrl  = trim($msg['thumb_url'] ?? '');
+    $mediaInfo = $msg['media_info'] ?? null;
+
+    // ---- 文本消息校验 ----
+    if ($msgType === 'text') {
+        if (empty($content)) {
+            sendError($connection, '消息内容不能为空');
+            return;
+        }
+        if (mb_strlen($content) > MSG_MAX_LENGTH) {
+            sendError($connection, '消息内容过长，最多' . MSG_MAX_LENGTH . '字');
+            return;
+        }
+    }
+
+    // ---- 多媒体消息校验 ----
+    if (in_array($msgType, ['image', 'video', 'voice'], true) && empty($mediaUrl)) {
+        sendError($connection, '媒体文件不能为空');
+        return;
+    }
+
+    // XSS 净化
+    $content = htmlspecialchars($content, ENT_QUOTES, 'UTF-8');
+
+    // mediaInfo 格式校验
+    if ($mediaInfo !== null && !is_array($mediaInfo)) {
+        $mediaInfo = null;
+    }
+
+    // 保存到数据库
+    $now = date('Y-m-d H:i:s');
+    $msgId = savePrivateMessage($connection->userId, $toId, $content, $msgType, $mediaUrl, $thumbUrl, $mediaInfo);
+
+    // 构建推送数据
+    $pushData = [
+        'type'           => 'private_message',
+        'id'             => $msgId,
+        'from_id'        => $connection->userId,
+        'to_id'          => $toId,
+        'user_id'        => $connection->userId,
+        'nickname'       => $connection->userInfo['nickname'] ?? '',
+        'avatar'         => $connection->userInfo['avatar'] ?? '',
+        'user_code'      => $connection->userInfo['user_code'] ?? '',
+        'from_nickname'  => $connection->userInfo['nickname'] ?? '',
+        'from_avatar'    => $connection->userInfo['avatar'] ?? '',
+        'msg_type'       => $msgType,
+        'content'        => $content,
+        'media_url'      => $mediaUrl,
+        'thumb_url'      => $thumbUrl,
+        'created_at'     => $now,
+    ];
+    if ($mediaInfo) {
+        $pushData['media_info'] = $mediaInfo;
+    }
+
+    // 发送给接收者
+    sendToUser($toId, $pushData);
+    // 也发回给发送者（确认消息已发送，并用于会话列表更新）
+    sendToUser($connection->userId, $pushData);
+
+    echo "[PM] {$connection->userId} => {$toId}: {$msgType}\n";
+}
+
+/**
+ * 处理群聊消息
+ */
+function handleGroupMessage(TcpConnection $connection, array $msg): void
+{
+    // 未登录
+    if (!$connection->userId) {
+        sendError($connection, '请先登录');
+        return;
+    }
+
+    // 频率限制
+    if (!checkRateLimit($connection)) {
+        sendError($connection, '发送太快了，请稍后再试');
+        return;
+    }
+
+    $groupId = (int)($msg['group_id'] ?? 0);
+    if ($groupId <= 0) {
+        sendError($connection, '群组 ID 无效');
+        return;
+    }
+
+    // 验证群成员身份 & 群组状态
+    $group = null;
+    try {
+        $isMember = Db::table('group_members')
+            ->where('group_id', $groupId)
+            ->where('user_id', $connection->userId)
+            ->find();
+        if (!$isMember) {
+            sendError($connection, '您不是该群成员');
+            return;
+        }
+
+        $group = Db::table('groups')
+            ->field('id, name, avatar, status')
+            ->where('id', $groupId)
+            ->find();
+        if (!$group || $group['status'] != 1) {
+            sendError($connection, '群组不存在或已解散');
+            return;
+        }
+    } catch (\Exception $e) {
+        echo "[DB Error] checkGroupMember: {$e->getMessage()}\n";
+        sendError($connection, '服务器错误');
+        return;
+    }
+
+    // 消息类型
+    $msgType = $msg['msg_type'] ?? 'text';
+    if (!in_array($msgType, ALLOWED_MSG_TYPES, true)) {
+        $msgType = 'text';
+    }
+
+    $content   = trim($msg['content'] ?? '');
+    $mediaUrl  = trim($msg['media_url'] ?? '');
+    $thumbUrl  = trim($msg['thumb_url'] ?? '');
+    $mediaInfo = $msg['media_info'] ?? null;
+
+    // ---- 文本消息校验 ----
+    if ($msgType === 'text') {
+        if (empty($content)) {
+            sendError($connection, '消息内容不能为空');
+            return;
+        }
+        if (mb_strlen($content) > MSG_MAX_LENGTH) {
+            sendError($connection, '消息内容过长，最多' . MSG_MAX_LENGTH . '字');
+            return;
+        }
+    }
+
+    // ---- 多媒体消息校验 ----
+    if (in_array($msgType, ['image', 'video', 'voice'], true) && empty($mediaUrl)) {
+        sendError($connection, '媒体文件不能为空');
+        return;
+    }
+
+    // XSS 净化
+    $content = htmlspecialchars($content, ENT_QUOTES, 'UTF-8');
+
+    // mediaInfo 格式校验
+    if ($mediaInfo !== null && !is_array($mediaInfo)) {
+        $mediaInfo = null;
+    }
+
+    // 保存到数据库
+    $now = date('Y-m-d H:i:s');
+    $msgId = saveGroupMessage($connection->userId, $groupId, $content, $msgType, $mediaUrl, $thumbUrl, $mediaInfo);
+
+    // 获取群所有成员 ID
+    $memberIds = [];
+    try {
+        $memberIds = Db::table('group_members')
+            ->where('group_id', $groupId)
+            ->column('user_id');
+    } catch (\Exception $e) {
+        echo "[DB Error] getGroupMembers: {$e->getMessage()}\n";
+        $memberIds = [$connection->userId]; // 至少发回给自己
+    }
+
+    // 构建推送数据
+    $pushData = [
+        'type'           => 'group_message',
+        'id'             => $msgId,
+        'group_id'       => $groupId,
+        'group_name'     => $group['name'] ?? '',
+        'group_avatar'   => $group['avatar'] ?? '',
+        'user_id'        => $connection->userId,
+        'nickname'       => $connection->userInfo['nickname'] ?? '',
+        'avatar'         => $connection->userInfo['avatar'] ?? '',
+        'user_code'      => $connection->userInfo['user_code'] ?? '',
+        'msg_type'       => $msgType,
+        'content'        => $content,
+        'media_url'      => $mediaUrl,
+        'thumb_url'      => $thumbUrl,
+        'created_at'     => $now,
+    ];
+    if ($mediaInfo) {
+        $pushData['media_info'] = $mediaInfo;
+    }
+
+    // 发送给群内所有在线成员
+    foreach ($memberIds as $memberId) {
+        sendToUser((int)$memberId, $pushData);
+    }
+
+    echo "[Group] {$connection->userId} => group#{$groupId}: {$msgType} (members=" . count($memberIds) . ")\n";
+}
+
+/**
  * 处理心跳
  */
 function handlePing(TcpConnection $connection): void
@@ -489,6 +776,12 @@ $ws->onMessage = function (TcpConnection $connection, $data) {
             break;
         case 'message':
             handleMessage($connection, $msg);
+            break;
+        case 'private_message':
+            handlePrivateMessage($connection, $msg);
+            break;
+        case 'group_message':
+            handleGroupMessage($connection, $msg);
             break;
         case 'ping':
             handlePing($connection);
