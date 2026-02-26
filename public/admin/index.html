@@ -722,7 +722,7 @@ tbody tr:hover { background: #fafbfc; }
       <div class="section-card">
         <div class="filter-bar">
           <select id="auditStatusFilter">
-            <option value="">待审核</option>
+            <option value="">全部状态</option>
             <option value="0">待审核</option>
             <option value="1">已发布</option>
             <option value="2">已找到</option>
@@ -1333,7 +1333,9 @@ async function loadAuditList(page) {
   pagination.innerHTML = '';
 
   const status = document.getElementById('auditStatusFilter').value;
-  const res = await apiGet('/audit/list', { page, status: status || 0 });
+  const params = { page };
+  if (status !== '') params.status = status;
+  const res = await apiGet('/audit/list', params);
 
   loading.classList.add('hidden');
 
@@ -1389,7 +1391,7 @@ async function viewPost(id) {
   let imagesHtml = '';
   if (post.images && post.images.length > 0) {
     imagesHtml = `<div class="post-images">${post.images.map(img =>
-      `<img src="${API_BASE}/${img.image_url || img.url || ''}" alt="图片" onerror="this.style.display='none'">`
+      `<img src="${img.image_url || img.url || ''}" alt="图片" onerror="this.style.display='none'">`
     ).join('')}</div>`;
   }
 

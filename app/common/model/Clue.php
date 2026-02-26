@@ -19,12 +19,20 @@ class Clue extends Model
     protected $hidden = ['deleted_at'];
 
     /**
-     * 获取器：图片数组
+     * 获取器：图片数组（自动补全URL）
      */
     public function getImagesAttr($value): array
     {
         if (empty($value)) return [];
-        return explode(',', $value);
+        $cdnUrl = env('APP_CDN_URL', 'https://home.dengshop.com');
+        return array_map(function ($url) use ($cdnUrl) {
+            $url = trim($url);
+            if (empty($url)) return '';
+            if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+                return $url;
+            }
+            return $cdnUrl . $url;
+        }, explode(',', $value));
     }
 
     /**

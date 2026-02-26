@@ -27,12 +27,10 @@ class PostAudit
         $query = Post::with(['images', 'user'])
             ->order('created_at', 'desc');
 
-        if (!is_null($status) && PostStatus::isValid((int)$status)) {
+        if (!is_null($status) && $status !== '' && PostStatus::isValid((int)$status)) {
             $query->where('status', (int)$status);
-        } else {
-            // 默认显示待审核
-            $query->where('status', PostStatus::PENDING);
         }
+        // 不传 status 时默认显示所有状态
 
         $list = $query->paginate(20, false, ['page' => $page]);
 

@@ -4,8 +4,13 @@ declare(strict_types=1);
 namespace app\admin\controller;
 
 use app\common\enum\ErrorCode;
+use app\common\enum\PostStatus;
 use app\common\exception\BusinessException;
+use app\common\model\AdminAuditLog;
+use app\common\model\Post;
 use app\common\model\Report;
+use app\common\service\NotifyService;
+use think\facade\Log;
 use think\Request;
 use think\Response;
 
@@ -70,6 +75,34 @@ class ReportManage
         $report->handle_remark = htmlspecialchars($remark, ENT_QUOTES, 'UTF-8');
         $report->handled_at = date('Y-m-d H:i:s');
         $report->save();
+
+        // 举报有效且目标为启事：屏蔽帖子，待用户修改后重新审核
+        if ($status === Report::STATUS_VALID && $report->target_type === Report::TARGET_POST) {
+            $post = Post::find($report->target_id);
+            if ($post && $post->status !== PostStatus::REJECTED) {
+                $post->status = PostStatus::REJECTED;
+                $post->audit_remark = '因用户举报被屏蔽' . ($remark ? '：' . $remark : '') . '。请修改后重新提交审核。';
+                $post->audited_by = $adminId;
+                $post->audited_at = date('Y-m-d H:i:s');
+                $post->save();
+
+                // 通知发布者
+                NotifyService::notifyAuditReject(
+                    $post->user_id,
+                    $post->id,
+                    $post->name,
+                    '您的启事因被举报违规已被屏蔽' . ($remark ? '：' . $remark : '') . '。请修改后重新提交'
+                );
+
+                // 审计日志
+                AdminAuditLog::log($adminId, AdminAuditLog::ACTION_TAKEDOWN, 'post', $post->id,
+                    json_encode(['report_id' => $id, 'remark' => $remark], JSON_UNESCAPED_UNICODE),
+                    $request->ip()
+                );
+
+                Log::info("Post blocked via report: post_id={$post->id}, report_id={$id}, admin={$adminId}");
+            }
+        }
 
         return json(['code' => 0, 'msg' => '处理成功']);
     }
