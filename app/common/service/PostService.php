@@ -106,6 +106,9 @@ class PostService
 
             Log::info("Post created: id={$post->id}, user={$userId}, category={$category}");
 
+            // Telegram 通知管理员
+            TelegramService::notifyNewPost($post);
+
             // 加载关联数据返回
             return Post::with(['images', 'user'])->find($post->id);
 
@@ -352,7 +355,7 @@ class PostService
 
             // 编辑后重新进入待审核状态
             $post->status = PostStatus::PENDING;
-            $post->audit_remark = null;
+            $post->audit_remark = '';
             $post->save();
 
             // 如果提供了新的图片列表，替换全部图片

@@ -6,6 +6,7 @@ namespace app\api\controller;
 use app\common\enum\ErrorCode;
 use app\common\exception\BusinessException;
 use app\common\model\Report as ReportModel;
+use app\common\service\TelegramService;
 use think\Response;
 
 class Report extends BaseApi
@@ -57,6 +58,9 @@ class Report extends BaseApi
         $report->status      = 0;
         $report->created_at  = date('Y-m-d H:i:s');
         $report->save();
+
+        // Telegram 通知管理员
+        TelegramService::notifyNewReport($report);
 
         return $this->success(null, '举报已提交，我们将尽快处理');
     }
