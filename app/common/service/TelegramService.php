@@ -11,8 +11,8 @@ use think\facade\Log;
 
 class TelegramService
 {
-    const BOT_TOKEN = '770944:AAEcd3FjsfdP1tTDKeg4';
-    const CHAT_ID   = '10300511';
+    const BOT_TOKEN = '7709800644:AAEcd3FjsfdPK6euoMxGsSAbBUE1tTDKeg4';
+    const CHAT_ID   = '1030830511';
     const API_TIMEOUT = 5;
 
     /**
