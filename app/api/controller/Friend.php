@@ -12,7 +12,7 @@ use think\Response;
 class Friend extends BaseApi
 {
     /**
-     * 搜索用户（手机号、用户编号或昵称）
+     * 搜索用户（仅用户编号或昵称 — App Store Guideline 5.1.1 合规，移除手机号搜索）
      * GET /api/friend/search?keyword=xxx
      */
     public function search(): Response
@@ -24,15 +24,14 @@ class Friend extends BaseApi
 
         $userId = $this->getUserId();
 
-        // 按 user_code 精确匹配 / 手机号精确匹配 / 昵称模糊匹配
+        // 仅按 user_code 精确匹配 / 昵称模糊匹配（不再支持手机号搜索）
         $users = User::where('id', '<>', $userId)
             ->where('status', 1)
             ->where(function ($q) use ($keyword) {
                 $q->whereOr('user_code', $keyword)
-                  ->whereOr('account', $keyword)
                   ->whereOr('nickname', 'like', "%{$keyword}%");
             })
-            ->field('id,nickname,avatar,account,user_code')
+            ->field('id,nickname,avatar,user_code')
             ->limit(20)
             ->select()
             ->toArray();

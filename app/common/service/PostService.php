@@ -83,6 +83,9 @@ class PostService
             $post->contact_name  = self::sanitize($data['contact_name'] ?? '');
             $post->contact_phone = preg_replace('/[^\d\-\+\s]/', '', $data['contact_phone'] ?? '');
 
+            // 可见性：1=公开 2=仅自己可见
+            $post->visibility = in_array((int)($data['visibility'] ?? 1), [1, 2]) ? (int)$data['visibility'] : 1;
+
             $post->status = PostStatus::PENDING; // ⚠️ 所有发布默认待审核
             $post->save();
 
@@ -128,7 +131,7 @@ class PostService
      * @param array $params 筛选参数
      * @return array
      */
-    public static function getList(array $params): array
+    public static function getList(array $params, ?int $userId = null): array
     {
         $page     = max(1, (int)($params['page'] ?? 1));
         $pageSize = min(50, max(1, (int)($params['page_size'] ?? 20)));
@@ -138,6 +141,13 @@ class PostService
         $days     = $params['days'] ?? null;
 
         $query = Post::active()
+            // 可见性过滤：只显示公开的，或自己发布的私密帖
+            ->where(function ($q) use ($userId) {
+                $q->where('visibility', 1);
+                if ($userId) {
+                    $q->whereOr('user_id', $userId);
+                }
+            })
             ->with(['images' => function ($q) {
                 $q->where('sort_order', 0)->field('post_id,image_url,thumb_url');
             }, 'user'])
@@ -181,6 +191,8 @@ class PostService
         $result = [];
         foreach ($items as $item) {
             $row = $item->toArray();
+            // 脱敏联系电话（所有分类）— App Store Guideline 5.1.1
+            $row = self::maskContactPhone($row);
             if (PostCategory::isMinor($row['category'])) {
                 $row = self::maskChildInfo($row);
             }
@@ -210,10 +222,21 @@ class PostService
             throw new BusinessException(ErrorCode::POST_NOT_FOUND);
         }
 
+        // 私密帖仅发布者本人可查看
+        if ($post->visibility == 2 && $post->user_id !== $userId) {
+            throw new BusinessException(ErrorCode::POST_NOT_FOUND);
+        }
+
         // 增加浏览次数（用 inc 原子操作防并发问题）
         Post::where('id', $id)->inc('view_count')->update();
 
         $result = $post->toArray();
+
+        // 脱敏联系电话（所有分类）— App Store Guideline 5.1.1
+        // 仅发布者本人可看到完整电话
+        if ($post->user_id !== $userId) {
+            $result = self::maskContactPhone($result);
+        }
 
         // ⚠️ 未成人保护
         if (PostCategory::isMinor($post->category)) {
@@ -328,12 +351,12 @@ class PostService
             $allowedFields = [
                 'name', 'gender', 'age', 'species', 'appearance', 'description',
                 'lost_at', 'lost_province', 'lost_city', 'lost_district', 'lost_address',
-                'contact_name', 'contact_phone',
+                'contact_name', 'contact_phone', 'visibility',
             ];
 
             foreach ($allowedFields as $field) {
                 if (isset($data[$field])) {
-                    if (in_array($field, ['gender'])) {
+                    if (in_array($field, ['gender', 'visibility'])) {
                         $post->$field = (int)$data[$field];
                     } elseif ($field === 'contact_phone') {
                         $post->$field = preg_replace('/[^\d\-\+\s]/', '', $data[$field]);
@@ -421,6 +444,21 @@ class PostService
         if (!empty($phone) && preg_match('/^1[3-9]\d{9}$/', $phone)) {
             Log::info("Child post uses mobile phone as contact: {$phone}");
         }
+    }
+
+    /**
+     * 脱敏联系电话（列表和详情返回时）— App Store Guideline 5.1.1
+     * 所有分类的帖子都脱敏联系电话
+     */
+    protected static function maskContactPhone(array $item): array
+    {
+        if (!empty($item['contact_phone']) && strlen($item['contact_phone']) >= 7) {
+            $phone = $item['contact_phone'];
+            $item['contact_phone'] = substr($phone, 0, 3) . '****' . substr($phone, -4);
+        } elseif (!empty($item['contact_phone'])) {
+            $item['contact_phone'] = '****';
+        }
+        return $item;
     }
 
     /**

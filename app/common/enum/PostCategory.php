@@ -6,13 +6,13 @@ namespace app\common\enum;
 class PostCategory
 {
     const PET   = 1; // 宠物
-    const ELDER = 2; // 成年人
+    const ELDER = 2; // 亲人
     const CHILD = 3; // 儿童
     const OTHER = 4; // 其它物品
 
     const MAP = [
         self::PET   => '宠物',
-        self::ELDER => '成年人',
+        self::ELDER => '亲人',
         self::CHILD => '儿童',
         self::OTHER => '其它物品',
     ];

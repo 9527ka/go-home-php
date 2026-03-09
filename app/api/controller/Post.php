@@ -14,7 +14,7 @@ class Post extends BaseApi
      * POST /api/post/create
      *
      * @header Authorization Bearer <token>
-     * @body category      int    1=宠物 2=成年人 3=儿童 4=其它物品
+     * @body category      int    1=宠物 2=亲人 3=儿童 4=其它物品
      * @body name          string 名字/称呼
      * @body gender        int    0=未知 1=男 2=女
      * @body age           string 年龄描述
@@ -64,7 +64,8 @@ class Post extends BaseApi
     {
         $params = $this->request->get();
 
-        $data = PostService::getList($params);
+        $userId = $this->getUserId();
+        $data = PostService::getList($params, $userId ?: null);
 
         return $this->successPage($data);
     }

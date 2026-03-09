@@ -8,7 +8,7 @@ use think\Validate;
 class PostValidate extends Validate
 {
     protected $rule = [
-        'category'      => 'require|in:1,2,3,4',
+        'category'      => 'require|in:1,2,4',
         'name'          => 'require|max:50',
         'gender'        => 'in:0,1,2',
         'age'           => 'max:20',
@@ -17,12 +17,13 @@ class PostValidate extends Validate
         'description'   => 'max:5000',
         'lost_at'       => 'require|date',
         'lost_province' => 'max:50',
-        'lost_city'     => 'require|max:50',
+        'lost_city'     => 'require|max:100',
         'lost_district' => 'max:50',
         'lost_address'  => 'max:255',
         'contact_name'  => 'max:50',
         'contact_phone' => 'require|max:20',
         'images'        => 'array|max:9',
+        'visibility'    => 'in:1,2',
     ];
 
     protected $message = [
@@ -37,6 +38,7 @@ class PostValidate extends Validate
         'lost_city.require'   => '请选择走失城市',
         'contact_phone.require' => '请填写联系电话',
         'images.max'          => '最多上传9张图片',
+        'visibility.in'       => '可见性设置无效',
     ];
 
     protected $scene = [
@@ -44,13 +46,13 @@ class PostValidate extends Validate
             'category', 'name', 'gender', 'age', 'species',
             'appearance', 'description', 'lost_at',
             'lost_province', 'lost_city', 'lost_district', 'lost_address',
-            'contact_name', 'contact_phone', 'images',
+            'contact_name', 'contact_phone', 'images', 'visibility',
         ],
         'update' => [
             'name', 'gender', 'age', 'species',
             'appearance', 'description',
             'lost_province', 'lost_city', 'lost_district', 'lost_address',
-            'contact_name', 'contact_phone',
+            'contact_name', 'contact_phone', 'visibility',
         ],
     ];
 }

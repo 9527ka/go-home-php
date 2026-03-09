@@ -36,7 +36,7 @@ DROP TABLE IF EXISTS `posts`;
 CREATE TABLE `posts` (
     `id`              BIGINT UNSIGNED  NOT NULL AUTO_INCREMENT,
     `user_id`         BIGINT UNSIGNED  NOT NULL COMMENT '发布者',
-    `category`        TINYINT UNSIGNED NOT NULL COMMENT '1=宠物 2=成年人 3=儿童',
+    `category`        TINYINT UNSIGNED NOT NULL COMMENT '1=宠物 2=亲人 3=儿童',
     `lang`            VARCHAR(10)      NOT NULL DEFAULT 'zh-CN' COMMENT '原始语言',
     `name`            VARCHAR(50)      NOT NULL COMMENT '名字/称呼/宠物名',
     `gender`          TINYINT UNSIGNED NOT NULL DEFAULT 0 COMMENT '0=未知 1=男/公 2=女/母',
