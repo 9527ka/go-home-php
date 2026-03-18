@@ -15,9 +15,7 @@ class Post extends BaseApi
      *
      * @header Authorization Bearer <token>
      * @body category      int    1=宠物 2=亲人 3=儿童 4=其它物品
-     * @body name          string 名字/称呼
-     * @body gender        int    0=未知 1=男 2=女
-     * @body age           string 年龄描述
+     * @body name          string 标题
      * @body species       string 宠物品种(仅宠物类)
      * @body appearance    string 体貌特征(≥10字)
      * @body description   string 补充描述
@@ -26,8 +24,6 @@ class Post extends BaseApi
      * @body lost_city     string 市(必填)
      * @body lost_district string 区
      * @body lost_address  string 详细地址
-     * @body contact_name  string 联系人
-     * @body contact_phone string 联系电话(必填)
      * @body images        array  图片URL列表(≤9张)
      */
     public function create(): Response
@@ -107,7 +103,7 @@ class Post extends BaseApi
      *
      * @header Authorization Bearer <token>
      * @body id            int    启事ID（必填）
-     * @body name          string 名字/称呼
+     * @body name          string 标题
      * @body appearance    string 体貌特征
      * @body ...           其他可编辑字段同 create
      * @body images        array  新图片URL列表（可选，提供则替换全部图片）

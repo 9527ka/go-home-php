@@ -62,8 +62,6 @@ class PostService
             $post->category      = $category;
             $post->lang          = $data['lang'] ?? 'zh-CN';
             $post->name          = self::sanitize($data['name'] ?? '');
-            $post->gender        = (int)($data['gender'] ?? 0);
-            $post->age           = self::sanitize($data['age'] ?? '');
             $post->species       = self::sanitize($data['species'] ?? '');
             $post->appearance    = self::sanitize($data['appearance'] ?? '');
             $post->description   = self::sanitize($data['description'] ?? '');
@@ -78,10 +76,6 @@ class PostService
             $lat = $data['lost_latitude'] ?? null;
             $post->lost_longitude = ($lng !== null && abs((float)$lng) <= 180) ? (float)$lng : null;
             $post->lost_latitude  = ($lat !== null && abs((float)$lat) <= 90) ? (float)$lat : null;
-
-            // ⚠️ 修复：contact_phone 也需要净化
-            $post->contact_name  = self::sanitize($data['contact_name'] ?? '');
-            $post->contact_phone = preg_replace('/[^\d\-\+\s]/', '', $data['contact_phone'] ?? '');
 
             // 可见性：1=公开 2=仅自己可见
             $post->visibility = in_array((int)($data['visibility'] ?? 1), [1, 2]) ? (int)$data['visibility'] : 1;
@@ -191,8 +185,6 @@ class PostService
         $result = [];
         foreach ($items as $item) {
             $row = $item->toArray();
-            // 脱敏联系电话（所有分类）— App Store Guideline 5.1.1
-            $row = self::maskContactPhone($row);
             if (PostCategory::isMinor($row['category'])) {
                 $row = self::maskChildInfo($row);
             }
@@ -231,12 +223,6 @@ class PostService
         Post::where('id', $id)->inc('view_count')->update();
 
         $result = $post->toArray();
-
-        // 脱敏联系电话（所有分类）— App Store Guideline 5.1.1
-        // 仅发布者本人可看到完整电话
-        if ($post->user_id !== $userId) {
-            $result = self::maskContactPhone($result);
-        }
 
         // ⚠️ 未成人保护
         if (PostCategory::isMinor($post->category)) {
@@ -349,17 +335,15 @@ class PostService
         try {
             // 更新允许修改的字段
             $allowedFields = [
-                'name', 'gender', 'age', 'species', 'appearance', 'description',
+                'name', 'species', 'appearance', 'description',
                 'lost_at', 'lost_province', 'lost_city', 'lost_district', 'lost_address',
-                'contact_name', 'contact_phone', 'visibility',
+                'visibility',
             ];
 
             foreach ($allowedFields as $field) {
                 if (isset($data[$field])) {
-                    if (in_array($field, ['gender', 'visibility'])) {
+                    if ($field === 'visibility') {
                         $post->$field = (int)$data[$field];
-                    } elseif ($field === 'contact_phone') {
-                        $post->$field = preg_replace('/[^\d\-\+\s]/', '', $data[$field]);
                     } else {
                         $post->$field = self::sanitize($data[$field]);
                     }
