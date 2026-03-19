@@ -60,6 +60,11 @@ class Post extends BaseApi
     {
         $params = $this->request->get();
 
+        // 未指定分类时，默认只显示当前可见分类（宠物+物品），排除审核要求隐藏的亲人/儿童类
+        if (!isset($params['category']) || $params['category'] === '') {
+            $params['category'] = implode(',', [PostCategory::PET, PostCategory::OTHER]);
+        }
+
         $userId = $this->getUserId();
         $data = PostService::getList($params, $userId ?: null);
 

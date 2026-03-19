@@ -15,6 +15,7 @@ Route::post('auth/quick-login', 'Auth/quickLogin');
 
 // ---- 公开接口（不需要登录）----
 Route::get('health', 'Health/check');
+Route::get('config/app', 'Config/app');
 Route::get('post/list', 'Post/list');
 Route::get('clue/list', 'Clue/list');
 Route::get('chat/history', 'Chat/history');
