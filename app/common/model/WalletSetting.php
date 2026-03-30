@@ -4,14 +4,15 @@ declare(strict_types=1);
 namespace app\common\model;
 
 use think\facade\Cache;
-use think\Model;
+use think\facade\Db;
 
-class WalletSetting extends Model
+/**
+ * 钱包配置（KV 表）
+ * 不继承 Model，避免方法名冲突
+ */
+class WalletSetting
 {
-    protected $table = 'wallet_settings';
-    protected $autoWriteTimestamp = false;
-    protected $updateTime = 'updated_at';
-
+    const TABLE        = 'wallet_settings';
     const CACHE_PREFIX = 'wallet_setting:';
     const CACHE_TTL    = 300; // 5分钟缓存
 
@@ -24,11 +25,11 @@ class WalletSetting extends Model
         $value = Cache::get($cacheKey);
 
         if ($value !== null) {
-            return $value;
+            return (string)$value;
         }
 
-        $row = self::where('setting_key', $key)->find();
-        $value = $row ? $row->setting_value : $default;
+        $row = Db::table(self::TABLE)->where('setting_key', $key)->find();
+        $value = $row ? (string)$row['setting_value'] : $default;
 
         Cache::set($cacheKey, $value, self::CACHE_TTL);
         return $value;
@@ -39,14 +40,17 @@ class WalletSetting extends Model
      */
     public static function setValue(string $key, string $value): void
     {
-        $row = self::where('setting_key', $key)->find();
+        $row = Db::table(self::TABLE)->where('setting_key', $key)->find();
         if ($row) {
-            $row->setting_value = $value;
-            $row->save();
+            Db::table(self::TABLE)->where('setting_key', $key)->update([
+                'setting_value' => $value,
+                'updated_at'    => date('Y-m-d H:i:s'),
+            ]);
         } else {
-            self::create([
+            Db::table(self::TABLE)->insert([
                 'setting_key'   => $key,
                 'setting_value' => $value,
+                'updated_at'    => date('Y-m-d H:i:s'),
             ]);
         }
 
@@ -58,7 +62,7 @@ class WalletSetting extends Model
      */
     public static function getAll(): array
     {
-        return self::column('setting_value', 'setting_key');
+        return Db::table(self::TABLE)->column('setting_value', 'setting_key');
     }
 
     /**
