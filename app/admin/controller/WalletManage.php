@@ -61,10 +61,10 @@ class WalletManage
         $order->processed_at = date('Y-m-d H:i:s');
         $order->save();
 
-        AdminAuditLog::log($request->adminId, 'recharge_approve', 'recharge_order', $order->id, [
+        AdminAuditLog::log($request->adminId, 'recharge_approve', 'recharge_order', $order->id, json_encode([
             'user_id' => $order->user_id,
             'amount'  => (float)$order->amount,
-        ], $request->ip());
+        ], JSON_UNESCAPED_UNICODE), $request->ip());
 
         Log::info("Recharge approved: order#{$orderId}, amount={$order->amount}");
 
@@ -91,10 +91,10 @@ class WalletManage
         $order->processed_at = date('Y-m-d H:i:s');
         $order->save();
 
-        AdminAuditLog::log($request->adminId, 'recharge_reject', 'recharge_order', $order->id, [
+        AdminAuditLog::log($request->adminId, 'recharge_reject', 'recharge_order', $order->id, json_encode([
             'user_id' => $order->user_id,
             'remark'  => $remark,
-        ], $request->ip());
+        ], JSON_UNESCAPED_UNICODE), $request->ip());
 
         return json(['code' => 0, 'msg' => '充值已拒绝']);
     }
@@ -133,9 +133,9 @@ class WalletManage
 
         WalletService::approveWithdrawal($orderId, $request->adminId, $txHash);
 
-        AdminAuditLog::log($request->adminId, 'withdrawal_approve', 'withdrawal_order', $orderId, [
+        AdminAuditLog::log($request->adminId, 'withdrawal_approve', 'withdrawal_order', $orderId, json_encode([
             'tx_hash' => $txHash,
-        ], $request->ip());
+        ], JSON_UNESCAPED_UNICODE), $request->ip());
 
         return json(['code' => 0, 'msg' => '提现已通过']);
     }
@@ -151,9 +151,9 @@ class WalletManage
 
         WalletService::rejectWithdrawal($orderId, $request->adminId, $remark);
 
-        AdminAuditLog::log($request->adminId, 'withdrawal_reject', 'withdrawal_order', $orderId, [
+        AdminAuditLog::log($request->adminId, 'withdrawal_reject', 'withdrawal_order', $orderId, json_encode([
             'remark' => $remark,
-        ], $request->ip());
+        ], JSON_UNESCAPED_UNICODE), $request->ip());
 
         return json(['code' => 0, 'msg' => '提现已拒绝，余额已退回']);
     }
@@ -249,10 +249,10 @@ class WalletManage
 
         WalletSetting::setValue($key, $value);
 
-        AdminAuditLog::log($request->adminId, 'wallet_settings_update', 'wallet_settings', 0, [
+        AdminAuditLog::log($request->adminId, 'wallet_settings_update', 'wallet_settings', 0, json_encode([
             'key'   => $key,
             'value' => $value,
-        ], $request->ip());
+        ], JSON_UNESCAPED_UNICODE), $request->ip());
 
         return json(['code' => 0, 'msg' => '配置已更新']);
     }
