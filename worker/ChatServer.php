@@ -32,7 +32,7 @@ use think\facade\Db;
 const MAX_CONNECTIONS      = 500;   // 最大连接数
 const MAX_CONN_PER_IP      = 5;     // 每 IP 最大连接数
 const AUTH_TIMEOUT_SEC     = 30;    // 未认证连接超时（秒）
-const IDLE_TIMEOUT_SEC     = 600;   // 空闲连接超时（10分钟）
+const IDLE_TIMEOUT_SEC     = 3600;  // 空闲连接超时（1小时）
 const RATE_LIMIT_MESSAGES  = 10;    // 消息频率限制：N 条
 const RATE_LIMIT_WINDOW    = 10;    // 频率限制时间窗口（秒）
 const CLEANUP_INTERVAL_SEC = 60;    // 清理检查间隔（秒）
@@ -935,6 +935,17 @@ $ws->onWorkerStart = function () {
     // 定时检查过期红包并退回余额
     Timer::add(RED_PACKET_REFUND_INTERVAL, function () {
         refundExpiredRedPackets();
+    });
+
+    // 服务端主动心跳：每30秒向所有已认证连接发送ping，防止中间层断开空闲连接
+    Timer::add(30, function () {
+        global $connections;
+        $ping = json_encode(['type' => 'ping']);
+        foreach ($connections as $conn) {
+            if ($conn->userId ?? null) {
+                $conn->send($ping);
+            }
+        }
     });
 
     echo "[ChatServer] Started. max_conn=" . MAX_CONNECTIONS
