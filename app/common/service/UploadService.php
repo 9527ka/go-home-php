@@ -101,8 +101,8 @@ class UploadService
         } catch (BusinessException $e) {
             throw $e;
         } catch (\Exception $e) {
-            Log::error("Upload failed: " . $e->getMessage());
-            throw new BusinessException(ErrorCode::UPLOAD_FAIL);
+            Log::error("Upload image failed: " . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+            throw new BusinessException(ErrorCode::UPLOAD_FAIL, '文件上传失败: ' . $e->getMessage());
         }
     }
 

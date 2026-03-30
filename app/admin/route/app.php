@@ -52,4 +52,17 @@ Route::group('', function () {
     Route::post('settings/language/update', 'SystemSettings/updateLanguage');
     Route::get('settings/regions', 'SystemSettings/regions');
 
+    // 钱包管理
+    Route::get('wallet/recharge/list', 'WalletManage/rechargeList');
+    Route::post('wallet/recharge/approve', 'WalletManage/rechargeApprove');
+    Route::post('wallet/recharge/reject', 'WalletManage/rechargeReject');
+    Route::get('wallet/withdrawal/list', 'WalletManage/withdrawalList');
+    Route::post('wallet/withdrawal/approve', 'WalletManage/withdrawalApprove');
+    Route::post('wallet/withdrawal/reject', 'WalletManage/withdrawalReject');
+    Route::get('wallet/transactions', 'WalletManage/transactions');
+    Route::get('wallet/red-packet/list', 'WalletManage/redPacketList');
+    Route::get('wallet/red-packet/claims', 'WalletManage/redPacketClaims');
+    Route::get('wallet/settings', 'WalletManage/settings');
+    Route::post('wallet/settings/update', 'WalletManage/settingsUpdate');
+
 })->middleware(\app\admin\middleware\AdminAuth::class);

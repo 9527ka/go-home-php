@@ -61,6 +61,19 @@ class ErrorCode
     const GROUP_OWNER_CANNOT_LEAVE = 3033;
     const GROUP_FULL               = 3034;
 
+    // ---- 钱包相关 ----
+    const WALLET_DISABLED          = 3500;
+    const WALLET_INSUFFICIENT      = 3501;
+    const WALLET_RECHARGE_PENDING  = 3502;
+    const WALLET_WITHDRAWAL_PENDING = 3503;
+    const WALLET_AMOUNT_TOO_SMALL  = 3504;
+    const WALLET_FROZEN            = 3505;
+    const WALLET_SELF_DONATE       = 3506;
+    const RED_PACKET_EXPIRED       = 3510;
+    const RED_PACKET_CLAIMED       = 3511;
+    const RED_PACKET_EMPTY         = 3512;
+    const BOOST_POST_INACTIVE      = 3515;
+
     // ========== 系统相关 4xxx ==========
     const UPLOAD_FAIL           = 4001;
     const SYSTEM_ERROR          = 4002;
@@ -111,6 +124,18 @@ class ErrorCode
         self::GROUP_NO_PERMISSION      => '无权执行此操作',
         self::GROUP_OWNER_CANNOT_LEAVE => '群主不能退出，请先解散群组',
         self::GROUP_FULL               => '群组人数已满',
+
+        self::WALLET_DISABLED          => '钱包功能未开启',
+        self::WALLET_INSUFFICIENT      => '余额不足',
+        self::WALLET_RECHARGE_PENDING  => '您有待审核的充值订单',
+        self::WALLET_WITHDRAWAL_PENDING => '您有待审核的提现订单',
+        self::WALLET_AMOUNT_TOO_SMALL  => '金额低于最低限额',
+        self::WALLET_FROZEN            => '钱包已被冻结',
+        self::WALLET_SELF_DONATE       => '不能给自己捐赠',
+        self::RED_PACKET_EXPIRED       => '红包已过期',
+        self::RED_PACKET_CLAIMED       => '您已领取过该红包',
+        self::RED_PACKET_EMPTY         => '红包已被领完',
+        self::BOOST_POST_INACTIVE      => '启事状态异常，无法置顶',
 
         self::UPLOAD_FAIL           => '文件上传失败',
         self::SYSTEM_ERROR          => '系统异常，请稍后重试',

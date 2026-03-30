@@ -37,7 +37,8 @@ const RATE_LIMIT_MESSAGES  = 10;    // 消息频率限制：N 条
 const RATE_LIMIT_WINDOW    = 10;    // 频率限制时间窗口（秒）
 const CLEANUP_INTERVAL_SEC = 60;    // 清理检查间隔（秒）
 const MSG_MAX_LENGTH       = 500;   // 文本消息最大长度
-const ALLOWED_MSG_TYPES    = ['text', 'image', 'video', 'voice'];
+const ALLOWED_MSG_TYPES    = ['text', 'image', 'video', 'voice', 'red_packet'];
+const RED_PACKET_REFUND_INTERVAL = 60; // 红包过期退回检查间隔（秒）
 
 // ===== 全局状态 =====
 $connections = [];   // 连接池
@@ -674,6 +675,216 @@ function handleGroupMessage(TcpConnection $connection, array $msg): void
 }
 
 /**
+ * 处理红包消息（公共聊天室）
+ * 前端发红包后，通过 WebSocket 广播红包卡片消息
+ */
+function handleRedPacketMessage(TcpConnection $connection, array $msg): void
+{
+    if (!$connection->userId) {
+        sendError($connection, '请先登录');
+        return;
+    }
+
+    $redPacketId = (int)($msg['red_packet_id'] ?? 0);
+    if ($redPacketId <= 0) {
+        sendError($connection, '红包ID无效');
+        return;
+    }
+
+    // 查询红包信息
+    try {
+        $packet = Db::table('red_packets')
+            ->where('id', $redPacketId)
+            ->where('user_id', $connection->userId)
+            ->find();
+        if (!$packet) {
+            sendError($connection, '红包不存在');
+            return;
+        }
+    } catch (\Exception $e) {
+        echo "[DB Error] handleRedPacketMessage: {$e->getMessage()}\n";
+        sendError($connection, '服务器错误');
+        return;
+    }
+
+    $greeting = $packet['greeting'] ?: '恭喜发财，大吉大利';
+    $targetType = (int)$packet['target_type'];
+
+    $broadcastData = [
+        'type'           => 'red_packet',
+        'red_packet_id'  => $redPacketId,
+        'user_id'        => $connection->userId,
+        'nickname'       => $connection->userInfo['nickname'] ?? '',
+        'avatar'         => $connection->userInfo['avatar'] ?? '',
+        'greeting'       => $greeting,
+        'total_count'    => (int)$packet['total_count'],
+        'target_type'    => $targetType,
+        'target_id'      => (int)$packet['target_id'],
+        'created_at'     => date('Y-m-d H:i:s'),
+    ];
+
+    // 根据目标类型广播
+    $contentJson = json_encode(['red_packet_id' => $redPacketId, 'greeting' => $greeting], JSON_UNESCAPED_UNICODE);
+
+    if ($targetType === 1) {
+        // 公共聊天室红包 — 广播给所有人
+        $msgId = saveMessage($connection->userId, $contentJson, 'red_packet');
+        if ($msgId) $broadcastData['id'] = $msgId;
+        broadcast($broadcastData);
+    } elseif ($targetType === 2) {
+        // 私聊红包
+        $toId = (int)$packet['target_id'];
+        $msgId = savePrivateMessage($connection->userId, $toId, $contentJson, 'red_packet');
+        if ($msgId) $broadcastData['id'] = $msgId;
+        $broadcastData['type'] = 'private_message';
+        $broadcastData['msg_type'] = 'red_packet';
+        $broadcastData['from_id'] = $connection->userId;
+        $broadcastData['to_id'] = $toId;
+        $broadcastData['content'] = $contentJson;
+        sendToUser($toId, $broadcastData);
+        sendToUser($connection->userId, $broadcastData);
+    } elseif ($targetType === 3) {
+        // 群聊红包
+        $groupId = (int)$packet['target_id'];
+        $msgId = saveGroupMessage($connection->userId, $groupId, $contentJson, 'red_packet');
+        if ($msgId) $broadcastData['id'] = $msgId;
+        $broadcastData['type'] = 'group_message';
+        $broadcastData['msg_type'] = 'red_packet';
+        $broadcastData['group_id'] = $groupId;
+        $broadcastData['content'] = $contentJson;
+
+        try {
+            $memberIds = Db::table('group_members')
+                ->where('group_id', $groupId)
+                ->column('user_id');
+        } catch (\Exception $e) {
+            $memberIds = [$connection->userId];
+        }
+        foreach ($memberIds as $memberId) {
+            sendToUser((int)$memberId, $broadcastData);
+        }
+    }
+
+    echo "[RedPacket] userId={$connection->userId} sent red_packet#{$redPacketId} target_type={$targetType}\n";
+}
+
+/**
+ * 广播红包被领取通知
+ */
+function broadcastRedPacketClaimed(int $redPacketId, int $claimUserId, float $amount, int $targetType, int $targetId): void
+{
+    try {
+        $user = getUserInfo($claimUserId);
+        $nickname = $user['nickname'] ?? '';
+    } catch (\Exception $e) {
+        $nickname = '';
+    }
+
+    $data = [
+        'type'          => 'red_packet_claimed',
+        'red_packet_id' => $redPacketId,
+        'user_id'       => $claimUserId,
+        'nickname'      => $nickname,
+        'amount'        => $amount,
+        'target_type'   => $targetType,
+        'target_id'     => $targetId,
+    ];
+
+    if ($targetType === 1) {
+        broadcast($data);
+    } elseif ($targetType === 2) {
+        // 私聊红包：通知发送者和领取者
+        try {
+            $senderId = (int)Db::table('red_packets')->where('id', $redPacketId)->value('user_id');
+            if ($senderId) {
+                sendToUser($senderId, $data);
+            }
+            sendToUser($claimUserId, $data);
+        } catch (\Exception $e) {
+            echo "[DB Error] broadcastRedPacketClaimed private: {$e->getMessage()}\n";
+        }
+    } elseif ($targetType === 3) {
+        try {
+            $memberIds = Db::table('group_members')
+                ->where('group_id', $targetId)
+                ->column('user_id');
+            foreach ($memberIds as $memberId) {
+                sendToUser((int)$memberId, $data);
+            }
+        } catch (\Exception $e) {
+            echo "[DB Error] broadcastRedPacketClaimed: {$e->getMessage()}\n";
+        }
+    }
+}
+
+/**
+ * 退回过期红包
+ */
+function refundExpiredRedPackets(): void
+{
+    try {
+        $now = date('Y-m-d H:i:s');
+        $expiredPackets = Db::table('red_packets')
+            ->where('status', 1) // ACTIVE
+            ->where('expire_at', '<', $now)
+            ->where('remaining_amount', '>', 0)
+            ->select();
+
+        foreach ($expiredPackets as $packet) {
+            Db::startTrans();
+            try {
+                // 退回剩余金额给发送者
+                $remaining = (float)$packet['remaining_amount'];
+                if ($remaining > 0) {
+                    $affected = Db::table('wallets')
+                        ->where('user_id', $packet['user_id'])
+                        ->inc('balance', $remaining)
+                        ->update();
+
+                    if ($affected) {
+                        // 获取退回后余额
+                        $wallet = Db::table('wallets')
+                            ->where('user_id', $packet['user_id'])
+                            ->find();
+
+                        if ($wallet) {
+                            // 记录退回流水
+                            Db::table('wallet_transactions')->insert([
+                                'user_id'        => $packet['user_id'],
+                                'type'           => 8, // RED_PACKET_REFUND
+                                'amount'         => $remaining,
+                                'balance_before' => (float)$wallet['balance'] - $remaining,
+                                'balance_after'  => (float)$wallet['balance'],
+                                'related_type'   => 'red_packet',
+                                'related_id'     => $packet['id'],
+                                'remark'         => '红包过期退回',
+                                'created_at'     => $now,
+                            ]);
+                        }
+                    }
+                }
+
+                // 更新红包状态为已过期
+                Db::table('red_packets')
+                    ->where('id', $packet['id'])
+                    ->update([
+                        'status'     => 3, // EXPIRED
+                        'updated_at' => $now,
+                    ]);
+
+                Db::commit();
+                echo "[RedPacket] Refunded expired packet#{$packet['id']}, amount={$remaining} to userId={$packet['user_id']}\n";
+            } catch (\Exception $e) {
+                Db::rollback();
+                echo "[RedPacket] Refund failed for packet#{$packet['id']}: {$e->getMessage()}\n";
+            }
+        }
+    } catch (\Exception $e) {
+        echo "[RedPacket] refundExpiredRedPackets error: {$e->getMessage()}\n";
+    }
+}
+
+/**
  * 处理心跳
  */
 function handlePing(TcpConnection $connection): void
@@ -719,6 +930,11 @@ $ws->onWorkerStart = function () {
             broadcastOnlineCount();
             echo "[Cleanup] Removed " . count($toClean) . " connections, active=" . count($connections) . "\n";
         }
+    });
+
+    // 定时检查过期红包并退回余额
+    Timer::add(RED_PACKET_REFUND_INTERVAL, function () {
+        refundExpiredRedPackets();
     });
 
     echo "[ChatServer] Started. max_conn=" . MAX_CONNECTIONS
@@ -783,6 +999,9 @@ $ws->onMessage = function (TcpConnection $connection, $data) {
         case 'group_message':
             handleGroupMessage($connection, $msg);
             break;
+        case 'red_packet':
+            handleRedPacketMessage($connection, $msg);
+            break;
         case 'ping':
             handlePing($connection);
             break;
@@ -832,7 +1051,7 @@ $internal->onMessage = function (TcpConnection $connection, $data) use (&$connec
     if ($cmd['cmd'] === 'send_to_user' && isset($cmd['user_id'], $cmd['data'])) {
         $userId = (int)$cmd['user_id'];
         $pushData = $cmd['data'];
-        
+
         // 遍历所有连接，找到目标用户并发送
         foreach ($connections as $conn) {
             if (isset($conn->userId) && $conn->userId === $userId) {
@@ -840,6 +1059,17 @@ $internal->onMessage = function (TcpConnection $connection, $data) use (&$connec
                 echo "[Internal] Pushed to userId={$userId}\n";
             }
         }
+    }
+
+    // 处理 red_packet_claimed 广播指令
+    if ($cmd['cmd'] === 'red_packet_claimed' && isset($cmd['red_packet_id'])) {
+        broadcastRedPacketClaimed(
+            (int)$cmd['red_packet_id'],
+            (int)($cmd['user_id'] ?? 0),
+            (float)($cmd['amount'] ?? 0),
+            (int)($cmd['target_type'] ?? 0),
+            (int)($cmd['target_id'] ?? 0)
+        );
     }
 };
 

@@ -85,4 +85,20 @@ Route::group('', function () {
     Route::get('pm/conversations', 'Pm/conversations');
     Route::post('pm/read', 'Pm/read');
 
+    // 钱包
+    Route::get('wallet/info', 'Wallet/info');
+    Route::get('wallet/transactions', 'Wallet/transactions');
+    Route::post('wallet/recharge', 'Wallet/recharge');
+    Route::get('wallet/recharge/list', 'Wallet/rechargeList');
+    Route::post('wallet/withdraw', 'Wallet/withdraw');
+    Route::get('wallet/withdraw/list', 'Wallet/withdrawList');
+    Route::post('wallet/donate', 'Wallet/donate');
+    Route::post('wallet/boost', 'Wallet/boost');
+    Route::get('wallet/boost/active', 'Wallet/boostActive');
+
+    // 红包
+    Route::post('red-packet/send', 'RedPacket/send');
+    Route::post('red-packet/claim', 'RedPacket/claim');
+    Route::get('red-packet/detail', 'RedPacket/detail');
+
 })->middleware(\app\api\middleware\AuthCheck::class);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace app\api\controller;
 
 use app\api\validate\PostValidate;
+use app\common\enum\PostCategory;
 use app\common\service\PostService;
 use think\Response;
 

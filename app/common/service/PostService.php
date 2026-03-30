@@ -134,19 +134,26 @@ class PostService
         $keyword  = $params['keyword'] ?? null;
         $days     = $params['days'] ?? null;
 
+        $now = date('Y-m-d H:i:s');
+
         $query = Post::active()
+            ->alias('posts')
+            ->leftJoin('post_boosts pb', "pb.post_id = posts.id AND pb.status = 1 AND pb.expire_at > '{$now}'")
+            ->field('posts.*, CASE WHEN pb.id IS NOT NULL THEN 1 ELSE 0 END as is_boosted')
+            ->group('posts.id')
             // 可见性过滤：只显示公开的，或自己发布的私密帖
             ->where(function ($q) use ($userId) {
-                $q->where('visibility', 1);
+                $q->where('posts.visibility', 1);
                 if ($userId) {
-                    $q->whereOr('user_id', $userId);
+                    $q->whereOr('posts.user_id', $userId);
                 }
             })
             ->with(['images' => function ($q) {
                 $q->where('sort_order', 0)->field('post_id,image_url,thumb_url');
             }, 'user'])
-            ->order('is_top', 'desc')
-            ->order('created_at', 'desc');
+            ->order('is_boosted', 'desc')
+            ->order('posts.is_top', 'desc')
+            ->order('posts.created_at', 'desc');
 
         // 分类筛选（支持逗号分隔的多分类：如 "1,4" 表示宠物+其它物品）
         if (!is_null($category) && $category !== '') {
