@@ -231,7 +231,7 @@ class WalletManage
      */
     public function settings(): Response
     {
-        return json(['code' => 0, 'msg' => 'ok', 'data' => WalletSetting::all()]);
+        return json(['code' => 0, 'msg' => 'ok', 'data' => WalletSetting::getAll()]);
     }
 
     /**
@@ -247,7 +247,7 @@ class WalletManage
             return json(['code' => ErrorCode::PARAM_MISSING, 'msg' => '缺少参数']);
         }
 
-        WalletSetting::set($key, $value);
+        WalletSetting::setValue($key, $value);
 
         AdminAuditLog::log($request->adminId, 'wallet_settings_update', 'wallet_settings', 0, [
             'key'   => $key,

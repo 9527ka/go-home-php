@@ -136,7 +136,8 @@ class PostService
 
         $now = date('Y-m-d H:i:s');
 
-        $query = Post::active()
+        // 注意：使用了 alias + leftJoin，不能用 scopeActive，需手动加 posts. 前缀避免字段歧义
+        $query = Post::where('posts.status', PostStatus::ACTIVE)
             ->alias('posts')
             ->leftJoin('post_boosts pb', "pb.post_id = posts.id AND pb.status = 1 AND pb.expire_at > '{$now}'")
             ->field('posts.*, CASE WHEN pb.id IS NOT NULL THEN 1 ELSE 0 END as is_boosted')

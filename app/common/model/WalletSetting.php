@@ -18,7 +18,7 @@ class WalletSetting extends Model
     /**
      * 获取配置值
      */
-    public static function get(string $key, string $default = ''): string
+    public static function getValue(string $key, string $default = ''): string
     {
         $cacheKey = self::CACHE_PREFIX . $key;
         $value = Cache::get($cacheKey);
@@ -37,7 +37,7 @@ class WalletSetting extends Model
     /**
      * 设置配置值
      */
-    public static function set(string $key, string $value): void
+    public static function setValue(string $key, string $value): void
     {
         $row = self::where('setting_key', $key)->find();
         if ($row) {
@@ -56,7 +56,7 @@ class WalletSetting extends Model
     /**
      * 获取所有配置(管理后台用)
      */
-    public static function all(): array
+    public static function getAll(): array
     {
         return self::column('setting_value', 'setting_key');
     }
@@ -66,6 +66,6 @@ class WalletSetting extends Model
      */
     public static function isEnabled(): bool
     {
-        return self::get('wallet_enabled') === '1';
+        return self::getValue('wallet_enabled') === '1';
     }
 }

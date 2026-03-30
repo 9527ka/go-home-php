@@ -204,7 +204,7 @@ class WalletService
             throw new BusinessException(ErrorCode::WALLET_FROZEN);
         }
 
-        $minWithdrawal = (float)WalletSetting::get('min_withdrawal', '20');
+        $minWithdrawal = (float)WalletSetting::getValue('min_withdrawal', '20');
         if ($amount < $minWithdrawal) {
             throw new BusinessException(ErrorCode::WALLET_AMOUNT_TOO_SMALL, "最低提现 {$minWithdrawal} USDT");
         }
@@ -217,7 +217,7 @@ class WalletService
             throw new BusinessException(ErrorCode::WALLET_WITHDRAWAL_PENDING);
         }
 
-        $feeRate = (float)WalletSetting::get('withdrawal_fee_rate', '0');
+        $feeRate = (float)WalletSetting::getValue('withdrawal_fee_rate', '0');
         $fee = round($amount * $feeRate, 2);
         $netAmount = round($amount - $fee, 2);
         $totalDeduct = $amount; // 冻结总额 = 提现金额（含手续费在内）
@@ -325,7 +325,7 @@ class WalletService
             throw new BusinessException(ErrorCode::WALLET_SELF_DONATE);
         }
 
-        $minDonation = (float)WalletSetting::get('min_donation', '1');
+        $minDonation = (float)WalletSetting::getValue('min_donation', '1');
         if ($amount < $minDonation) {
             throw new BusinessException(ErrorCode::WALLET_AMOUNT_TOO_SMALL, "最低捐赠 {$minDonation} USDT");
         }
@@ -392,7 +392,7 @@ class WalletService
             throw new BusinessException(ErrorCode::BOOST_POST_INACTIVE);
         }
 
-        $hourlyRate = (float)WalletSetting::get('boost_hourly_rate', '10');
+        $hourlyRate = (float)WalletSetting::getValue('boost_hourly_rate', '10');
         $totalCost = round($hourlyRate * $hours, 2);
 
         $now = date('Y-m-d H:i:s');
@@ -439,7 +439,7 @@ class WalletService
     {
         self::checkEnabled();
 
-        $maxAmount = (float)WalletSetting::get('max_red_packet_amount', '500');
+        $maxAmount = (float)WalletSetting::getValue('max_red_packet_amount', '500');
         if ($totalAmount > $maxAmount) {
             throw new BusinessException(ErrorCode::WALLET_AMOUNT_TOO_SMALL, "红包金额不能超过 {$maxAmount} USDT");
         }
@@ -453,7 +453,7 @@ class WalletService
             throw new BusinessException(ErrorCode::WALLET_AMOUNT_TOO_SMALL, '红包金额过小');
         }
 
-        $expireHours = (int)WalletSetting::get('red_packet_expire_hours', '24');
+        $expireHours = (int)WalletSetting::getValue('red_packet_expire_hours', '24');
         $expireAt = date('Y-m-d H:i:s', time() + $expireHours * 3600);
 
         if (empty($greeting)) {

@@ -7,7 +7,6 @@ use app\api\validate\PostValidate;
 use app\common\enum\PostCategory;
 use app\common\service\PostService;
 use think\Response;
-use app\common\enum\PostCategory;
 
 class Post extends BaseApi
 {

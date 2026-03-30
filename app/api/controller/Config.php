@@ -39,8 +39,8 @@ class Config extends BaseApi
 
         return $this->success([
             'visible_categories' => $visibleCategories,
-            'wallet_enabled'     => WalletSetting::get('wallet_enabled') === '1',
-            'boost_hourly_rate'  => (float)WalletSetting::get('boost_hourly_rate', '10'),
+            'wallet_enabled'     => WalletSetting::getValue('wallet_enabled') === '1',
+            'boost_hourly_rate'  => (float)WalletSetting::getValue('boost_hourly_rate', '10'),
         ]);
     }
 }
