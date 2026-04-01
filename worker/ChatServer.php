@@ -103,7 +103,16 @@ function saveMessage(int $userId, string $content, string $msgType = 'text', str
             'media_info' => $mediaInfo ? json_encode($mediaInfo, JSON_UNESCAPED_UNICODE) : null,
             'created_at' => date('Y-m-d H:i:s'),
         ];
-        return (int)Db::table('chat_messages')->insertGetId($data);
+        $id = (int)Db::table('chat_messages')->insertGetId($data);
+
+        // 签到任务：聊天计数
+        try {
+            \app\common\service\TaskService::incrementTaskProgress($userId, 'chat_3');
+        } catch (\Throwable $e) {
+            echo "[Task] chat_3 progress failed for user#{$userId}: {$e->getMessage()}\n";
+        }
+
+        return $id;
     } catch (\Exception $e) {
         echo "[DB Error] saveMessage: {$e->getMessage()}\n";
         return null;
@@ -404,7 +413,16 @@ function savePrivateMessage(int $fromId, int $toId, string $content, string $msg
             'is_read'    => 0,
             'created_at' => date('Y-m-d H:i:s'),
         ];
-        return (int)Db::table('private_messages')->insertGetId($data);
+        $id = (int)Db::table('private_messages')->insertGetId($data);
+
+        // 签到任务：聊天计数
+        try {
+            \app\common\service\TaskService::incrementTaskProgress($fromId, 'chat_3');
+        } catch (\Throwable $e) {
+            echo "[Task] chat_3 progress failed for user#{$fromId}: {$e->getMessage()}\n";
+        }
+
+        return $id;
     } catch (\Exception $e) {
         echo "[DB Error] savePrivateMessage: {$e->getMessage()}\n";
         return null;
@@ -728,6 +746,8 @@ function handleRedPacketMessage(TcpConnection $connection, array $msg): void
 
     if ($targetType === 1) {
         // 公共聊天室红包 — 广播给所有人
+        $broadcastData['msg_type'] = 'red_packet';
+        $broadcastData['content'] = $contentJson;
         $msgId = saveMessage($connection->userId, $contentJson, 'red_packet');
         if ($msgId) $broadcastData['id'] = $msgId;
         broadcast($broadcastData);

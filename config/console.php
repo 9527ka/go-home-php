@@ -5,5 +5,7 @@
 
 return [
     // 指令定义
-    'commands' => [],
+    'commands' => [
+        \app\common\command\RewardRelease::class,
+    ],
 ];

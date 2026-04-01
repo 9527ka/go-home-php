@@ -85,6 +85,14 @@ Route::group('', function () {
     Route::get('pm/conversations', 'Pm/conversations');
     Route::post('pm/read', 'Pm/read');
 
+    // 签到
+    Route::post('sign', 'Sign/sign');
+    Route::get('sign/status', 'Sign/status');
+
+    // 任务
+    Route::get('tasks', 'Task/list');
+    Route::post('task/complete', 'Task/complete');
+
     // 钱包
     Route::get('wallet/info', 'Wallet/info');
     Route::get('wallet/transactions', 'Wallet/transactions');

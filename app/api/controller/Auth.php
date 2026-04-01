@@ -188,6 +188,13 @@ class Auth extends BaseApi
                 return $this->error(ErrorCode::PARAM_FORMAT_ERROR, '头像路径无效');
             }
             $user->save($data);
+
+            // 签到任务：完善资料
+            try {
+                \app\common\service\TaskService::incrementTaskProgress($userId, 'complete_profile');
+            } catch (\Throwable $e) {
+                // 静默失败，不影响主流程
+            }
         }
 
         return $this->success($user->hidden(['password', 'deleted_at']), '更新成功');

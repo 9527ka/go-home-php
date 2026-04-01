@@ -65,4 +65,12 @@ Route::group('', function () {
     Route::get('wallet/settings', 'WalletManage/settings');
     Route::post('wallet/settings/update', 'WalletManage/settingsUpdate');
 
+    // 签到/任务管理
+    Route::get('sign/stats', 'SignManage/stats');
+    Route::get('sign/logs', 'SignManage/signLogs');
+    Route::get('sign/task-logs', 'SignManage/taskLogs');
+    Route::get('sign/tasks', 'SignManage/taskDefinitions');
+    Route::post('sign/task/update', 'SignManage/updateTask');
+    Route::post('sign/toggle', 'SignManage/toggle');
+
 })->middleware(\app\admin\middleware\AdminAuth::class);

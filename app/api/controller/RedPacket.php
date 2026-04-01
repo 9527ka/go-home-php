@@ -6,7 +6,9 @@ namespace app\api\controller;
 use app\common\enum\ErrorCode;
 use app\common\model\RedPacket as RedPacketModel;
 use app\common\model\RedPacketClaim;
+use app\common\model\User;
 use app\common\service\WalletService;
+use think\facade\Db;
 use think\Response;
 
 class RedPacket extends BaseApi
@@ -14,7 +16,6 @@ class RedPacket extends BaseApi
     /**
      * 发红包
      * POST /api/red-packet/send
-     * {target_type, target_id, total_amount, total_count, greeting?}
      */
     public function send(): Response
     {
@@ -41,10 +42,15 @@ class RedPacket extends BaseApi
             $greeting
         );
 
-        // 返回红包信息，前端用于发送 WebSocket 消息
-        $packet->load(['user']);
+        // 手动获取红包数据 + 用户信息，避免 with() 兼容问题
+        $data = RedPacketModel::find($packet->id);
+        if ($data) {
+            $data = $data->toArray();
+            $user = User::field('id,nickname,avatar')->find($data['user_id']);
+            $data['user'] = $user ? $user->toArray() : null;
+        }
 
-        return $this->success($packet, '红包已发送');
+        return $this->success($data, '红包已发送');
     }
 
     /**
@@ -74,24 +80,51 @@ class RedPacket extends BaseApi
     {
         $id = (int)$this->request->get('id', 0);
 
-        $packet = RedPacketModel::with(['user', 'claims.user'])->find($id);
+        $packet = RedPacketModel::find($id);
         if (!$packet) {
             return $this->error(ErrorCode::PARAM_FORMAT_ERROR, '红包不存在');
         }
 
-        // 查看当前用户是否已领取
-        $myClaim = RedPacketClaim::where('red_packet_id', $id)
-            ->where('user_id', $this->getUserId())
-            ->find();
-
-        // 找出手气最佳
-        $bestClaim = RedPacketClaim::where('red_packet_id', $id)
-            ->order('amount', 'desc')
-            ->find();
-
         $data = $packet->toArray();
+
+        // 手动查询发送者信息
+        $sender = User::field('id,nickname,avatar')->find($packet->user_id);
+        $data['user'] = $sender ? $sender->toArray() : null;
+
+        // 查询领取记录
+        $claims = RedPacketClaim::where('red_packet_id', $id)
+            ->order('created_at', 'asc')
+            ->select()
+            ->toArray();
+
+        // 为每条领取记录附加用户信息
+        $userIds = array_column($claims, 'user_id');
+        $users = [];
+        if (!empty($userIds)) {
+            $userList = User::field('id,nickname,avatar')
+                ->whereIn('id', $userIds)
+                ->select();
+            foreach ($userList as $u) {
+                $users[$u->id] = $u->toArray();
+            }
+        }
+
+        $myClaim = null;
+        $bestClaim = null;
+        foreach ($claims as &$claim) {
+            $claim['user'] = $users[$claim['user_id']] ?? null;
+            if ($claim['user_id'] === $this->getUserId()) {
+                $myClaim = $claim;
+            }
+            if (!$bestClaim || $claim['amount'] > $bestClaim['amount']) {
+                $bestClaim = $claim;
+            }
+        }
+        unset($claim);
+
+        $data['claims'] = $claims;
         $data['my_claim'] = $myClaim;
-        $data['best_user_id'] = $bestClaim ? $bestClaim->user_id : null;
+        $data['best_user_id'] = $bestClaim ? $bestClaim['user_id'] : null;
 
         return $this->success($data);
     }

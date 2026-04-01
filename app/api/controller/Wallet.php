@@ -26,12 +26,14 @@ class Wallet extends BaseApi
         $wallet = WalletService::getOrCreateWallet($this->getUserId());
 
         return $this->success([
-            'balance'         => (float)$wallet->balance,
-            'frozen_balance'  => (float)$wallet->frozen_balance,
-            'total_recharged' => (float)$wallet->total_recharged,
-            'total_withdrawn' => (float)$wallet->total_withdrawn,
-            'total_donated'   => (float)$wallet->total_donated,
-            'total_received'  => (float)$wallet->total_received,
+            'balance'                => (float)$wallet->balance,
+            'frozen_balance'         => (float)$wallet->frozen_balance,
+            'reward_frozen_balance'  => (float)$wallet->reward_frozen_balance,
+            'total_recharged'        => (float)$wallet->total_recharged,
+            'total_withdrawn'        => (float)$wallet->total_withdrawn,
+            'total_donated'          => (float)$wallet->total_donated,
+            'total_received'         => (float)$wallet->total_received,
+            'total_reward_earned'    => (float)$wallet->total_reward_earned,
             'settings'        => [
                 'usdt_address_trc20' => WalletSetting::getValue('usdt_address_trc20'),
                 'usdt_address_erc20' => WalletSetting::getValue('usdt_address_erc20'),
