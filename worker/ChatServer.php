@@ -728,6 +728,8 @@ function handleRedPacketMessage(TcpConnection $connection, array $msg): void
 
     if ($targetType === 1) {
         // 公共聊天室红包 — 广播给所有人
+        $broadcastData['msg_type'] = 'red_packet';
+        $broadcastData['content'] = $contentJson;
         $msgId = saveMessage($connection->userId, $contentJson, 'red_packet');
         if ($msgId) $broadcastData['id'] = $msgId;
         broadcast($broadcastData);
