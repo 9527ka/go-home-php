@@ -119,6 +119,13 @@ class AuthService
 
         Log::info("User login: id={$user->id}, ip=" . request()->ip());
 
+        // 签到任务：每日登录
+        try {
+            TaskService::incrementTaskProgress($user->id, 'login');
+        } catch (\Throwable $e) {
+            Log::warning("Task progress (login) failed for user#{$user->id}: " . $e->getMessage());
+        }
+
         return [
             'token'    => $token,
             'expires'  => time() + self::JWT_EXPIRE,

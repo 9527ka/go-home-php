@@ -74,6 +74,13 @@ class ErrorCode
     const RED_PACKET_EMPTY         = 3512;
     const BOOST_POST_INACTIVE      = 3515;
 
+    // ---- 签到/任务相关 ----
+    const SIGN_DISABLED            = 3520;
+    const SIGN_ALREADY_TODAY       = 3521;
+    const TASK_NOT_FOUND           = 3522;
+    const TASK_ALREADY_DONE        = 3523;
+    const TASK_DISABLED            = 3524;
+
     // ========== 系统相关 4xxx ==========
     const UPLOAD_FAIL           = 4001;
     const SYSTEM_ERROR          = 4002;
@@ -136,6 +143,11 @@ class ErrorCode
         self::RED_PACKET_CLAIMED       => '您已领取过该红包',
         self::RED_PACKET_EMPTY         => '红包已被领完',
         self::BOOST_POST_INACTIVE      => '启事状态异常，无法置顶',
+        self::SIGN_DISABLED            => '签到功能未开启',
+        self::SIGN_ALREADY_TODAY       => '今日已签到',
+        self::TASK_NOT_FOUND           => '任务不存在',
+        self::TASK_ALREADY_DONE        => '任务已完成',
+        self::TASK_DISABLED            => '任务未开启',
 
         self::UPLOAD_FAIL           => '文件上传失败',
         self::SYSTEM_ERROR          => '系统异常，请稍后重试',

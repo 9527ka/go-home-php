@@ -374,6 +374,13 @@ class WalletService
                 $post->id
             );
 
+            // 签到任务：完成一笔消费
+            try {
+                TaskService::incrementTaskProgress($fromUserId, 'purchase');
+            } catch (\Throwable $e) {
+                // 静默失败
+            }
+
             return $donation;
         });
     }
@@ -425,6 +432,13 @@ class WalletService
                 ->order('id', 'desc')
                 ->limit(1)
                 ->update(['related_id' => $boost->id]);
+
+            // 签到任务：完成一笔消费
+            try {
+                TaskService::incrementTaskProgress($userId, 'purchase');
+            } catch (\Throwable $e) {
+                // 静默失败
+            }
 
             return $boost;
         });
@@ -485,6 +499,13 @@ class WalletService
                 ->order('id', 'desc')
                 ->limit(1)
                 ->update(['related_id' => $packet->id]);
+
+            // 签到任务：完成一笔消费
+            try {
+                TaskService::incrementTaskProgress($userId, 'purchase');
+            } catch (\Throwable $e) {
+                // 静默失败
+            }
 
             return $packet;
         });

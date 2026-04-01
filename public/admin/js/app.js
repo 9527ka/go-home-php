@@ -172,6 +172,13 @@ function switchPage(page) {
       document.getElementById('pageWallet').classList.remove('hidden');
       switchWalletTab('recharge');
       break;
+    case 'signin':
+      document.getElementById('pageSignin').classList.remove('hidden');
+      loadSignStats();
+      loadSignLogs(1);
+      loadTaskDefinitions();
+      loadTaskLogs(1);
+      break;
     case 'settings':
       document.getElementById('pageSettings').classList.remove('hidden');
       loadLangList();
@@ -189,6 +196,7 @@ function refreshCurrentPage() {
     case 'clues': loadClueList(clueData.page || 1); break;
     case 'managers': loadManagerList(managerData.page || 1); break;
     case 'wallet': switchWalletTab(currentWalletTab); break;
+    case 'signin': loadSignStats(); loadSignLogs(signinData.page || 1); loadTaskDefinitions(); loadTaskLogs(taskLogData.page || 1); break;
     case 'settings': loadLangList(); break;
   }
 }
