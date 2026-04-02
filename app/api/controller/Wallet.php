@@ -70,7 +70,13 @@ class Wallet extends BaseApi
             'page'      => $page,
         ]);
 
-        return $this->successPage($list->toArray());
+        return $this->successPage([
+            'list'      => $list->items(),
+            'page'      => $list->currentPage(),
+            'page_size' => $list->listRows(),
+            'total'     => $list->total(),
+            'last_page' => $list->lastPage(),
+        ]);
     }
 
     /**
@@ -124,7 +130,13 @@ class Wallet extends BaseApi
             ->order('created_at', 'desc')
             ->paginate(['list_rows' => 20, 'page' => $page]);
 
-        return $this->successPage($list->toArray());
+        return $this->successPage([
+            'list'      => $list->items(),
+            'page'      => $list->currentPage(),
+            'page_size' => $list->listRows(),
+            'total'     => $list->total(),
+            'last_page' => $list->lastPage(),
+        ]);
     }
 
     /**
@@ -162,7 +174,13 @@ class Wallet extends BaseApi
             ->order('created_at', 'desc')
             ->paginate(['list_rows' => 20, 'page' => $page]);
 
-        return $this->successPage($list->toArray());
+        return $this->successPage([
+            'list'      => $list->items(),
+            'page'      => $list->currentPage(),
+            'page_size' => $list->listRows(),
+            'total'     => $list->total(),
+            'last_page' => $list->lastPage(),
+        ]);
     }
 
     /**
