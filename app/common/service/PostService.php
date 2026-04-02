@@ -10,6 +10,9 @@ use app\common\exception\BusinessException;
 use app\common\model\Notification;
 use app\common\model\Post;
 use app\common\model\PostImage;
+use app\common\model\Like;
+use app\common\model\Follow;
+use app\common\model\Favorite;
 use think\facade\Db;
 use think\facade\Log;
 
@@ -239,6 +242,28 @@ class PostService
 
         // 添加免责声明
         $result['disclaimer'] = '⚠️ 本平台不保证信息真实性，请通过官方渠道核实。如发现违法线索，请立即拨打110报警。';
+
+        // 互动状态（登录用户才查）
+        $result['is_liked']     = false;
+        $result['is_favorited'] = false;
+        $result['is_following'] = false;
+        if ($userId) {
+            $result['is_liked'] = Like::where('user_id', $userId)
+                ->where('target_type', Like::TARGET_POST)
+                ->where('target_id', $id)
+                ->count() > 0;
+            $result['is_favorited'] = Favorite::where('user_id', $userId)
+                ->where('post_id', $id)
+                ->count() > 0;
+            if ($post->user_id !== $userId) {
+                $result['is_following'] = Follow::where('follower_id', $userId)
+                    ->where('following_id', $post->user_id)
+                    ->count() > 0;
+            }
+        }
+
+        // 发布者粉丝数
+        $result['user_follower_count'] = (int)(\app\common\model\User::where('id', $post->user_id)->value('follower_count') ?? 0);
 
         return $result;
     }
@@ -513,7 +538,7 @@ class PostService
      * 基础敏感词过滤
      * MVP阶段用简单的关键词匹配，后续可接入第三方
      */
-    protected static function filterSensitiveContent(array $data): void
+    public static function filterSensitiveContent(array $data): void
     {
         // 基础关键词（可从数据库/配置文件读取扩展）
         $sensitiveWords = [

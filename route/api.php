@@ -59,6 +59,7 @@ Route::group('api', function () {
         Route::get('notification/list', 'api/Notification/list');
         Route::get('notification/unread', 'api/Notification/unread');
         Route::post('notification/read', 'api/Notification/read');
+        Route::post('notification/deleteAll', 'api/Notification/deleteAll');
 
         // 好友
         Route::get('friend/search', 'api/Friend/search');
@@ -85,6 +86,24 @@ Route::group('api', function () {
         Route::get('pm/history', 'api/Pm/history');
         Route::get('pm/conversations', 'api/Pm/conversations');
         Route::post('pm/read', 'api/Pm/read');
+
+        // 点赞
+        Route::post('like/toggle', 'api/Like/toggle');
+        Route::get('like/status', 'api/Like/status');
+        Route::get('like/users', 'api/Like/users');
+
+        // 评论
+        Route::post('comment/create', 'api/Comment/create');
+        Route::get('comment/list', 'api/Comment/list');
+        Route::get('comment/replies', 'api/Comment/replies');
+        Route::post('comment/delete', 'api/Comment/delete');
+
+        // 关注
+        Route::post('follow/toggle', 'api/Follow/toggle');
+        Route::get('follow/status', 'api/Follow/status');
+        Route::get('follow/followers', 'api/Follow/followers');
+        Route::get('follow/following', 'api/Follow/following');
+        Route::get('follow/recommend', 'api/Follow/recommend');
 
     })->middleware(\app\api\middleware\AuthCheck::class);
 

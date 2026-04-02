@@ -52,6 +52,21 @@ class Notification extends BaseApi
     }
 
     /**
+     * 删除全部已读通知
+     * POST /api/notification/deleteAll
+     */
+    public function deleteAll(): Response
+    {
+        $userId = $this->getUserId();
+
+        $deleted = NotificationModel::where('user_id', $userId)
+            ->where('is_read', 1)
+            ->delete();
+
+        return $this->success(['deleted_count' => (int)$deleted], '已清空');
+    }
+
+    /**
      * 未读数量
      * GET /api/notification/unread
      */

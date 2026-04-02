@@ -206,7 +206,7 @@ class WalletService
 
         $minWithdrawal = (float)WalletSetting::getValue('min_withdrawal', '20');
         if ($amount < $minWithdrawal) {
-            throw new BusinessException(ErrorCode::WALLET_AMOUNT_TOO_SMALL, "最低提现 {$minWithdrawal} USDT");
+            throw new BusinessException(ErrorCode::WALLET_AMOUNT_TOO_SMALL, "最低提现 {$minWithdrawal} 爱心币");
         }
 
         // 检查是否有待审核的提现
@@ -217,7 +217,7 @@ class WalletService
             throw new BusinessException(ErrorCode::WALLET_WITHDRAWAL_PENDING);
         }
 
-        $feeRate = (float)WalletSetting::getValue('withdrawal_fee_rate', '0');
+        $feeRate = (float)WalletSetting::getValue('withdrawal_fee_rate', '0.05');
         $fee = round($amount * $feeRate, 2);
         $netAmount = round($amount - $fee, 2);
         $totalDeduct = $amount; // 冻结总额 = 提现金额（含手续费在内）
@@ -327,7 +327,7 @@ class WalletService
 
         $minDonation = (float)WalletSetting::getValue('min_donation', '1');
         if ($amount < $minDonation) {
-            throw new BusinessException(ErrorCode::WALLET_AMOUNT_TOO_SMALL, "最低捐赠 {$minDonation} USDT");
+            throw new BusinessException(ErrorCode::WALLET_AMOUNT_TOO_SMALL, "最低捐赠 {$minDonation} 爱心币");
         }
 
         return Db::transaction(function () use ($fromUserId, $post, $amount, $message, $anonymous) {
@@ -370,7 +370,7 @@ class WalletService
                 $post->user_id,
                 5, // system notification
                 '收到捐赠',
-                ($anonymous ? '匿名用户' : '') . "向您的启事「{$post->name}」捐赠了 {$amount} USDT",
+                ($anonymous ? '匿名用户' : '') . "向您的启事「{$post->name}」捐赠了 {$amount} 爱心币",
                 $post->id
             );
 
@@ -455,7 +455,7 @@ class WalletService
 
         $maxAmount = (float)WalletSetting::getValue('max_red_packet_amount', '500');
         if ($totalAmount > $maxAmount) {
-            throw new BusinessException(ErrorCode::WALLET_AMOUNT_TOO_SMALL, "红包金额不能超过 {$maxAmount} USDT");
+            throw new BusinessException(ErrorCode::WALLET_AMOUNT_TOO_SMALL, "红包金额不能超过 {$maxAmount} 爱心币");
         }
 
         if ($totalCount < 1 || $totalCount > 100) {

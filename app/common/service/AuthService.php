@@ -14,11 +14,6 @@ use think\facade\Log;
 class AuthService
 {
     /**
-     * JWT 过期时间（秒）
-     */
-    const JWT_EXPIRE = 86400 * 7; // 7天
-
-    /**
      * 登录失败最大尝试次数
      */
     const MAX_LOGIN_ATTEMPTS = 5;
@@ -29,11 +24,19 @@ class AuthService
     const LOCKOUT_DURATION = 900; // 15分钟
 
     /**
-     * 获取 JWT 密钥（从 .env 读取，有默认值兜底开发环境）
+     * 获取 JWT 密钥（统一从 config/jwt.php 读取）
      */
     protected static function getJwtSecret(): string
     {
-        return env('JWT_SECRET', 'e10adc3949ba59abbe56e057f20f883e');
+        return config('jwt.secret');
+    }
+
+    /**
+     * 获取 JWT 过期时间（秒）
+     */
+    protected static function getJwtExpire(): int
+    {
+        return config('jwt.expire') ?: 86400 * 7;
     }
 
     /**
@@ -128,7 +131,7 @@ class AuthService
 
         return [
             'token'    => $token,
-            'expires'  => time() + self::JWT_EXPIRE,
+            'expires'  => time() + self::getJwtExpire(),
             'userInfo' => $user->hidden(['password'])->toArray(),
         ];
     }
@@ -157,7 +160,7 @@ class AuthService
             'iss'     => 'go_home',
             'iat'     => $now,
             'nbf'     => $now,     // 不早于签发时间生效
-            'exp'     => $now + self::JWT_EXPIRE,
+            'exp'     => $now + self::getJwtExpire(),
             'jti'     => bin2hex(random_bytes(16)), // 唯一标识防重放
             'user_id' => $userId,
             'role'    => $role,
@@ -239,7 +242,7 @@ class AuthService
 
         return [
             'token'    => $token,
-            'expires'  => time() + self::JWT_EXPIRE,
+            'expires'  => time() + self::getJwtExpire(),
             'userInfo' => $user->hidden(['password'])->toArray(),
         ];
     }
@@ -310,7 +313,7 @@ class AuthService
 
         return [
             'token'    => $token,
-            'expires'  => time() + self::JWT_EXPIRE,
+            'expires'  => time() + self::getJwtExpire(),
             'userInfo' => $user->hidden(['password'])->toArray(),
         ];
     }

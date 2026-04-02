@@ -74,6 +74,14 @@ class ErrorCode
     const RED_PACKET_EMPTY         = 3512;
     const BOOST_POST_INACTIVE      = 3515;
 
+    // ---- 评论相关 ----
+    const COMMENT_NOT_FOUND        = 3040;
+    const COMMENT_NO_PERMISSION    = 3041;
+    const COMMENT_TOO_FREQUENT     = 3042;
+
+    // ---- 关注相关 ----
+    const FOLLOW_SELF              = 3050;
+
     // ---- 签到/任务相关 ----
     const SIGN_DISABLED            = 3520;
     const SIGN_ALREADY_TODAY       = 3521;
@@ -131,6 +139,11 @@ class ErrorCode
         self::GROUP_NO_PERMISSION      => '无权执行此操作',
         self::GROUP_OWNER_CANNOT_LEAVE => '群主不能退出，请先解散群组',
         self::GROUP_FULL               => '群组人数已满',
+
+        self::COMMENT_NOT_FOUND        => '评论不存在',
+        self::COMMENT_NO_PERMISSION    => '无权操作该评论',
+        self::COMMENT_TOO_FREQUENT     => '评论过于频繁',
+        self::FOLLOW_SELF              => '不能关注自己',
 
         self::WALLET_DISABLED          => '钱包功能未开启',
         self::WALLET_INSUFFICIENT      => '余额不足',

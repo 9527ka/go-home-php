@@ -37,12 +37,14 @@ class Wallet extends BaseApi
             'settings'        => [
                 'usdt_address_trc20' => WalletSetting::getValue('usdt_address_trc20'),
                 'usdt_address_erc20' => WalletSetting::getValue('usdt_address_erc20'),
-                'min_recharge'       => (float)WalletSetting::getValue('min_recharge', '10'),
-                'min_withdrawal'     => (float)WalletSetting::getValue('min_withdrawal', '20'),
-                'withdrawal_fee_rate' => (float)WalletSetting::getValue('withdrawal_fee_rate', '0'),
-                'boost_hourly_rate'  => (float)WalletSetting::getValue('boost_hourly_rate', '10'),
-                'min_donation'       => (float)WalletSetting::getValue('min_donation', '1'),
-                'max_red_packet_amount' => (float)WalletSetting::getValue('max_red_packet_amount', '500'),
+                'min_recharge'       => (float)WalletSetting::getValue('min_recharge', '1000'),
+                'min_withdrawal'     => (float)WalletSetting::getValue('min_withdrawal', '2000'),
+                'withdrawal_fee_rate' => (float)WalletSetting::getValue('withdrawal_fee_rate', '0.05'),
+                'boost_hourly_rate'  => (float)WalletSetting::getValue('boost_hourly_rate', '1000'),
+                'min_donation'       => (float)WalletSetting::getValue('min_donation', '100'),
+                'max_red_packet_amount' => (float)WalletSetting::getValue('max_red_packet_amount', '50000'),
+                'coin_name'          => '爱心币',
+                'coin_rate_per_usdt' => 100,
             ],
         ]);
     }
@@ -84,7 +86,7 @@ class Wallet extends BaseApi
 
         $minRecharge = (float)WalletSetting::getValue('min_recharge', '10');
         if ($amount < $minRecharge) {
-            return $this->error(ErrorCode::WALLET_AMOUNT_TOO_SMALL, "最低充值 {$minRecharge} USDT");
+            return $this->error(ErrorCode::WALLET_AMOUNT_TOO_SMALL, "最低充值 {$minRecharge} 爱心币");
         }
 
         if (empty($txHash)) {

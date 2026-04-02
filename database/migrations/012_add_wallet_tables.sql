@@ -160,7 +160,7 @@ INSERT INTO `wallet_settings` (`setting_key`, `setting_value`) VALUES
 ('usdt_address_erc20', ''),
 ('min_recharge', '10'),
 ('min_withdrawal', '20'),
-('withdrawal_fee_rate', '0'),
+('withdrawal_fee_rate', '0.05'),
 ('boost_hourly_rate', '10'),
 ('min_donation', '1'),
 ('red_packet_expire_hours', '24'),
