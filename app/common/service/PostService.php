@@ -258,28 +258,34 @@ class PostService
         }
 
         // 捐赠记录（最近20条）
-        $donations = Donation::with(['fromUser'])
-            ->where('post_id', $id)
-            ->order('created_at', 'desc')
-            ->limit(20)
-            ->select()
-            ->toArray();
-        // 匿名捐赠隐藏用户信息
-        foreach ($donations as &$d) {
-            if ($d['is_anonymous']) {
-                $d['from_user'] = null;
+        $result['donations'] = [];
+        $result['boosts']    = [];
+        try {
+            $donations = Donation::with(['fromUser'])
+                ->where('post_id', $id)
+                ->order('created_at', 'desc')
+                ->limit(20)
+                ->select()
+                ->toArray();
+            // 匿名捐赠隐藏用户信息
+            foreach ($donations as &$d) {
+                if ($d['is_anonymous']) {
+                    $d['from_user'] = null;
+                }
             }
-        }
-        unset($d);
-        $result['donations'] = $donations;
+            unset($d);
+            $result['donations'] = $donations;
 
-        // 推广置顶记录（最近20条）
-        $result['boosts'] = PostBoost::with(['user'])
-            ->where('post_id', $id)
-            ->order('created_at', 'desc')
-            ->limit(20)
-            ->select()
-            ->toArray();
+            // 推广置顶记录（最近20条）
+            $result['boosts'] = PostBoost::with(['user'])
+                ->where('post_id', $id)
+                ->order('created_at', 'desc')
+                ->limit(20)
+                ->select()
+                ->toArray();
+        } catch (\Throwable $e) {
+            Log::error('Load donations/boosts failed: ' . $e->getMessage());
+        }
 
         return $result;
     }
