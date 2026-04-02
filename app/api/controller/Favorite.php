@@ -61,15 +61,24 @@ class Favorite extends BaseApi
 
         $list = FavoriteModel::where('favorites.user_id', $userId)
             ->with(['post' => function ($q) {
-                $q->with(['images' => function ($iq) {
-                    $iq->where('sort_order', 0)->field('post_id,image_url,thumb_url');
-                }]);
+                $q->with(['user', 'images']);
             }])
             ->order('favorites.created_at', 'desc')
             ->paginate(20, false, ['page' => $page]);
 
+        // 提取 post 对象，过滤掉已删除的帖子
+        $posts = [];
+        foreach ($list->items() as $fav) {
+            $post = $fav->post;
+            if ($post && $post->isActive()) {
+                $arr = $post->toArray();
+                $arr['is_favorited'] = true;
+                $posts[] = $arr;
+            }
+        }
+
         return $this->successPage([
-            'list'      => $list->items(),
+            'list'      => $posts,
             'page'      => $list->currentPage(),
             'page_size' => $list->listRows(),
             'total'     => $list->total(),
