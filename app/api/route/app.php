@@ -121,11 +121,4 @@ Route::group('', function () {
     Route::get('comment/replies', 'Comment/replies');
     Route::post('comment/delete', 'Comment/delete');
 
-    // 关注
-    Route::post('follow/toggle', 'Follow/toggle');
-    Route::get('follow/status', 'Follow/status');
-    Route::get('follow/followers', 'Follow/followers');
-    Route::get('follow/following', 'Follow/following');
-    Route::get('follow/recommend', 'Follow/recommend');
-
 })->middleware(\app\api\middleware\AuthCheck::class);

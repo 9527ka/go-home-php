@@ -11,8 +11,9 @@ use app\common\model\Notification;
 use app\common\model\Post;
 use app\common\model\PostImage;
 use app\common\model\Like;
-use app\common\model\Follow;
 use app\common\model\Favorite;
+use app\common\model\Donation;
+use app\common\model\PostBoost;
 use think\facade\Db;
 use think\facade\Log;
 
@@ -246,7 +247,6 @@ class PostService
         // 互动状态（登录用户才查）
         $result['is_liked']     = false;
         $result['is_favorited'] = false;
-        $result['is_following'] = false;
         if ($userId) {
             $result['is_liked'] = Like::where('user_id', $userId)
                 ->where('target_type', Like::TARGET_POST)
@@ -255,15 +255,31 @@ class PostService
             $result['is_favorited'] = Favorite::where('user_id', $userId)
                 ->where('post_id', $id)
                 ->count() > 0;
-            if ($post->user_id !== $userId) {
-                $result['is_following'] = Follow::where('follower_id', $userId)
-                    ->where('following_id', $post->user_id)
-                    ->count() > 0;
-            }
         }
 
-        // 发布者粉丝数
-        $result['user_follower_count'] = (int)(\app\common\model\User::where('id', $post->user_id)->value('follower_count') ?? 0);
+        // 捐赠记录（最近20条）
+        $donations = Donation::with(['fromUser'])
+            ->where('post_id', $id)
+            ->order('created_at', 'desc')
+            ->limit(20)
+            ->select()
+            ->toArray();
+        // 匿名捐赠隐藏用户信息
+        foreach ($donations as &$d) {
+            if ($d['is_anonymous']) {
+                $d['from_user'] = null;
+            }
+        }
+        unset($d);
+        $result['donations'] = $donations;
+
+        // 推广置顶记录（最近20条）
+        $result['boosts'] = PostBoost::with(['user'])
+            ->where('post_id', $id)
+            ->order('created_at', 'desc')
+            ->limit(20)
+            ->select()
+            ->toArray();
 
         return $result;
     }
