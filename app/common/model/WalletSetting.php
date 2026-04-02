@@ -58,11 +58,38 @@ class WalletSetting
     }
 
     /**
-     * 获取所有配置(管理后台用)
+     * 配置项元信息（描述、类型）
+     */
+    const META = [
+        'wallet_enabled'         => ['description' => '钱包功能总开关（关闭后捐赠/推广/红包/签到等均不可用）', 'type' => 'toggle'],
+        'min_recharge'           => ['description' => '最低充值金额', 'type' => 'number'],
+        'min_withdrawal'         => ['description' => '最低提现金额', 'type' => 'number'],
+        'withdrawal_fee_rate'    => ['description' => '提现手续费比例（0.05 = 5%）', 'type' => 'number'],
+        'boost_hourly_rate'      => ['description' => '推广置顶每小时费用', 'type' => 'number'],
+        'min_donation'           => ['description' => '最低捐赠金额', 'type' => 'number'],
+        'usdt_address_trc20'     => ['description' => 'USDT 收款地址（TRC20）', 'type' => 'text'],
+        'usdt_address_erc20'     => ['description' => 'USDT 收款地址（ERC20）', 'type' => 'text'],
+        'red_packet_expire_hours'=> ['description' => '红包过期时间（小时）', 'type' => 'number'],
+        'max_red_packet_amount'  => ['description' => '单个红包最大金额', 'type' => 'number'],
+    ];
+
+    /**
+     * 获取所有配置(管理后台用)，返回数组格式便于前端渲染
      */
     public static function getAll(): array
     {
-        return Db::table(self::TABLE)->column('setting_value', 'setting_key');
+        $rows = Db::table(self::TABLE)->column('setting_value', 'setting_key');
+        $result = [];
+        foreach ($rows as $key => $value) {
+            $meta = self::META[$key] ?? ['description' => '', 'type' => 'text'];
+            $result[] = [
+                'key'         => $key,
+                'value'       => $value,
+                'description' => $meta['description'],
+                'type'        => $meta['type'],
+            ];
+        }
+        return $result;
     }
 
     /**

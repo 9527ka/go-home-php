@@ -268,6 +268,22 @@ async function viewRpClaims(rpId) {
 
 // ======================== Wallet Settings ========================
 
+function renderSettingValue(s) {
+  if (s.type === 'toggle') {
+    const checked = s.value === '1';
+    const color = checked ? '#22c55e' : '#ccc';
+    const offset = checked ? '20px' : '2px';
+    const label = checked ? '已开启' : '已关闭';
+    return `<span style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;" onclick="toggleWalletSetting('${escHtml(s.key)}', '${checked ? '0' : '1'}')">
+      <span style="display:inline-block;width:40px;height:22px;background:${color};border-radius:11px;position:relative;transition:background 0.2s;">
+        <span style="position:absolute;top:2px;left:${offset};width:18px;height:18px;background:#fff;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,0.2);transition:left 0.2s;"></span>
+      </span>
+      <span style="font-size:13px;color:${checked ? '#22c55e' : '#999'};">${label}</span>
+    </span>`;
+  }
+  return `<span style="font-weight:500;">${escHtml(s.value)}</span>`;
+}
+
 async function loadWalletSettings() {
   const loading = document.getElementById('wsLoading');
   loading.classList.remove('hidden');
@@ -278,19 +294,25 @@ async function loadWalletSettings() {
   walletSettings = res.data || [];
   document.getElementById('wsTbody').innerHTML = walletSettings.map(s => `<tr>
     <td><code style="background:#f0f0f0;padding:2px 6px;border-radius:4px;font-size:12px;">${escHtml(s.key)}</code></td>
-    <td style="font-weight:500;">${escHtml(s.value)}</td>
+    <td>${renderSettingValue(s)}</td>
     <td style="font-size:13px;color:#666;">${escHtml(s.description || '-')}</td>
-    <td><button class="btn-sm btn-view" onclick="editWalletSetting('${escHtml(s.key)}')">编辑</button></td>
+    <td>${s.type === 'toggle' ? '' : `<button class="btn-sm btn-view" onclick="editWalletSetting('${escHtml(s.key)}')">编辑</button>`}</td>
   </tr>`).join('');
+}
+
+async function toggleWalletSetting(key, newValue) {
+  const res = await apiPost('/wallet/settings/update', { key, value: newValue });
+  if (res.code === 0) { toast('配置已更新'); loadWalletSettings(); }
+  else toast(res.msg, 'error');
 }
 
 function editWalletSetting(key) {
   const s = walletSettings.find(i => i.key === key);
   if (!s) return;
   document.getElementById('wsKey').value = s.key;
-  document.getElementById('wsLabel').textContent = s.key;
+  document.getElementById('wsLabel').textContent = s.description || s.key;
   document.getElementById('wsValue').value = s.value;
-  document.getElementById('wsDesc').textContent = s.description || '';
+  document.getElementById('wsDesc').textContent = s.key;
   openModal('modalWalletSetting');
 }
 
