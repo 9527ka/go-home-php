@@ -1,0 +1,88 @@
+<div id="pageSettings" class="page">
+  <div class="page-header">
+    <h2>⚙️ 系统设置</h2>
+    <p>管理公告横幅、关于我们、语言等基础配置</p>
+  </div>
+
+  <!-- 公告横幅配置 -->
+  <div class="section-card" style="margin-bottom:20px;">
+    <div class="section-title">📢 公告横幅</div>
+    <p style="font-size:13px;color:#666;margin-bottom:16px;">控制聊天室顶部的滚动公告显示、内容和跳转链接。</p>
+    <div id="bannerLoading" class="loading-spinner hidden"><div class="spinner"></div>加载中...</div>
+    <div id="bannerConfig" class="hidden">
+      <div class="form-group" style="margin-bottom:12px;">
+        <label style="font-weight:600;">开关状态</label>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:6px;">
+          <span id="bannerStatusTag" class="status-tag active">已开启</span>
+          <button class="btn-sm btn-view" id="btnBannerToggle" onclick="toggleBanner()">关闭</button>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label style="font-weight:600;">公告内容</label>
+        <input type="text" id="bannerTextInput" placeholder="输入滚动公告文字..." style="width:100%;margin-top:6px;">
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label style="font-weight:600;">跳转链接</label>
+        <input type="text" id="bannerLinkInput" placeholder="https://..." style="width:100%;margin-top:6px;">
+      </div>
+      <button class="btn-filter" onclick="saveBannerConfig()">保存公告配置</button>
+    </div>
+  </div>
+
+  <!-- 关于我们配置 -->
+  <div class="section-card" style="margin-bottom:20px;">
+    <div class="section-title">📄 关于我们</div>
+    <p style="font-size:13px;color:#666;margin-bottom:16px;">配置 App「关于我们」页面显示的内容。</p>
+    <div id="aboutLoading" class="loading-spinner hidden"><div class="spinner"></div>加载中...</div>
+    <div id="aboutConfig" class="hidden">
+      <div class="form-group" style="margin-bottom:12px;">
+        <label style="font-weight:600;">App 版本号</label>
+        <input type="text" id="aboutVersion" placeholder="v1.0.0" style="width:100%;margin-top:6px;">
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label style="font-weight:600;">Telegram 联系方式</label>
+        <input type="text" id="aboutTelegram" placeholder="@username" style="width:100%;margin-top:6px;">
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label style="font-weight:600;">官方网站链接</label>
+        <input type="text" id="aboutWebsiteUrl" placeholder="https://..." style="width:100%;margin-top:6px;">
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label style="font-weight:600;">官方网站显示名</label>
+        <input type="text" id="aboutWebsiteName" placeholder="example.com" style="width:100%;margin-top:6px;">
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label style="font-weight:600;">平台宗旨</label>
+        <textarea id="aboutMission" rows="3" placeholder="平台宗旨描述..." style="width:100%;margin-top:6px;"></textarea>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label style="font-weight:600;">安全保障</label>
+        <textarea id="aboutSafety" rows="3" placeholder="安全保障描述..." style="width:100%;margin-top:6px;"></textarea>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label style="font-weight:600;">公益免费说明</label>
+        <textarea id="aboutFreeService" rows="3" placeholder="公益免费说明..." style="width:100%;margin-top:6px;"></textarea>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label style="font-weight:600;">免责声明</label>
+        <textarea id="aboutDisclaimer" rows="3" placeholder="免责声明内容..." style="width:100%;margin-top:6px;"></textarea>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label style="font-weight:600;">隐私政策</label>
+        <textarea id="aboutPrivacy" rows="3" placeholder="隐私政策内容..." style="width:100%;margin-top:6px;"></textarea>
+      </div>
+      <button class="btn-filter" onclick="saveAboutConfig()">保存关于我们配置</button>
+    </div>
+  </div>
+
+  <!-- 语言管理 -->
+  <div class="section-card">
+    <div class="section-title">🌐 语言管理</div>
+    <p style="font-size:13px;color:#666;margin-bottom:12px;">管理系统支持的多语言配置，用户可在前端切换语言。</p>
+    <div id="langLoading" class="loading-spinner hidden"><div class="spinner"></div>加载中...</div>
+    <table id="langTable">
+      <thead><tr><th>ID</th><th>代码</th><th>名称</th><th>默认</th><th>状态</th><th>排序</th><th>操作</th></tr></thead>
+      <tbody id="langTbody"></tbody>
+    </table>
+  </div>
+</div>

@@ -71,6 +71,18 @@ class WalletSetting
         'usdt_address_erc20'     => ['description' => 'USDT 收款地址（ERC20）', 'type' => 'text'],
         'red_packet_expire_hours'=> ['description' => '红包过期时间（小时）', 'type' => 'number'],
         'max_red_packet_amount'  => ['description' => '单个红包最大金额', 'type' => 'number'],
+        'banner_enabled'         => ['description' => '公告横幅开关（聊天室顶部滚动公告）', 'type' => 'toggle'],
+        'banner_text'            => ['description' => '公告横幅内容（滚动显示的文字）', 'type' => 'text'],
+        'banner_link'            => ['description' => '公告横幅跳转链接（点击后打开的URL）', 'type' => 'text'],
+        'about_version'          => ['description' => '关于我们 - App版本号', 'type' => 'text'],
+        'about_telegram'         => ['description' => '关于我们 - Telegram联系方式', 'type' => 'text'],
+        'about_website_url'      => ['description' => '关于我们 - 官方网站链接', 'type' => 'text'],
+        'about_website_name'     => ['description' => '关于我们 - 官方网站显示名', 'type' => 'text'],
+        'about_mission'          => ['description' => '关于我们 - 平台宗旨', 'type' => 'text'],
+        'about_safety'           => ['description' => '关于我们 - 安全保障', 'type' => 'text'],
+        'about_free_service'     => ['description' => '关于我们 - 公益免费说明', 'type' => 'text'],
+        'about_disclaimer'       => ['description' => '关于我们 - 免责声明', 'type' => 'text'],
+        'about_privacy'          => ['description' => '关于我们 - 隐私政策', 'type' => 'text'],
     ];
 
     /**

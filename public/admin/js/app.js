@@ -10,6 +10,9 @@ let currentPage = 'dashboard';
 let currentPostId = null;
 let currentReportId = null;
 
+// Track which pages have been loaded into the DOM
+const loadedPages = {};
+
 // ======================== Status/Category Maps ========================
 const POST_STATUS = { 0: '待审核', 1: '已发布', 2: '已找到', 3: '已关闭', 4: '已驳回' };
 const POST_STATUS_CLASS = { 0: 'pending', 1: 'active', 2: 'found', 3: 'closed', 4: 'rejected' };
@@ -21,6 +24,41 @@ const REPORT_REASON = { 1: '虚假信息', 2: '广告', 3: '涉及违法', 4: '�
 const REPORT_STATUS = { 0: '待处理', 1: '有效', 2: '无效', 3: '已忽略' };
 const REPORT_STATUS_CLASS = { 0: 'pending', 1: 'active', 2: 'rejected', 3: 'closed' };
 
+// ======================== Page Loading ========================
+
+/**
+ * Fetch a page HTML fragment from pages/ directory and insert it into the DOM.
+ * Returns a promise that resolves when the page is ready.
+ */
+async function loadPageHTML(page) {
+  if (loadedPages[page]) return; // already loaded
+
+  const container = document.getElementById('mainContent');
+  try {
+    const resp = await fetch('pages/' + page + '.html');
+    if (!resp.ok) throw new Error('Failed to load page: ' + page);
+    const html = await resp.text();
+
+    // Create a wrapper to hold this page's content (page div + modals)
+    const wrapper = document.createElement('div');
+    wrapper.id = 'pageWrapper_' + page;
+    wrapper.innerHTML = html;
+    container.appendChild(wrapper);
+
+    // Bind modal overlay click-to-close for newly added modals
+    wrapper.querySelectorAll('.modal-overlay').forEach(el => {
+      el.addEventListener('click', (e) => {
+        if (e.target === el) el.classList.remove('show');
+      });
+    });
+
+    loadedPages[page] = true;
+  } catch (err) {
+    console.error('[App] loadPageHTML error:', err);
+    toast('页面加载失败: ' + page, 'error');
+  }
+}
+
 // ======================== Initialization ========================
 document.addEventListener('DOMContentLoaded', () => {
   if (token && adminInfo) {
@@ -28,13 +66,6 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     showLogin();
   }
-
-  // Modal: close on overlay click
-  document.querySelectorAll('.modal-overlay').forEach(el => {
-    el.addEventListener('click', (e) => {
-      if (e.target === el) el.classList.remove('show');
-    });
-  });
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
@@ -126,12 +157,28 @@ function logout() {
   adminInfo = null;
   localStorage.removeItem('admin_token');
   localStorage.removeItem('admin_info');
+  // Clear loaded pages cache so re-login starts fresh
+  Object.keys(loadedPages).forEach(k => delete loadedPages[k]);
+  document.getElementById('mainContent').innerHTML = '';
   showLogin();
 }
 
 // ======================== Page Router ========================
 
-function switchPage(page) {
+// Map of page names to their data loading functions
+const PAGE_LOADERS = {
+  dashboard:  () => loadDashboard(),
+  audit:      () => loadAuditList(1),
+  reports:    () => loadReportList(1),
+  users:      () => loadUserList(1),
+  clues:      () => loadClueList(1),
+  managers:   () => loadManagerList(1),
+  wallet:     () => switchWalletTab('recharge'),
+  signin:     () => { loadSignStats(); loadSignLogs(1); loadTaskDefinitions(); loadTaskLogs(1); },
+  settings:   () => { loadBannerConfig(); loadAboutConfig(); loadLangList(); },
+};
+
+async function switchPage(page) {
   currentPage = page;
 
   // Update nav active state
@@ -139,51 +186,19 @@ function switchPage(page) {
     el.classList.toggle('active', el.dataset.page === page);
   });
 
-  // Hide all pages
-  document.querySelectorAll('.page').forEach(el => el.classList.add('hidden'));
+  // Load page HTML if not yet in DOM
+  await loadPageHTML(page);
 
-  // Show target page and load its data
-  switch (page) {
-    case 'dashboard':
-      document.getElementById('pageDashboard').classList.remove('hidden');
-      loadDashboard();
-      break;
-    case 'audit':
-      document.getElementById('pageAudit').classList.remove('hidden');
-      loadAuditList(1);
-      break;
-    case 'reports':
-      document.getElementById('pageReports').classList.remove('hidden');
-      loadReportList(1);
-      break;
-    case 'users':
-      document.getElementById('pageUsers').classList.remove('hidden');
-      loadUserList(1);
-      break;
-    case 'clues':
-      document.getElementById('pageClues').classList.remove('hidden');
-      loadClueList(1);
-      break;
-    case 'managers':
-      document.getElementById('pageManagers').classList.remove('hidden');
-      loadManagerList(1);
-      break;
-    case 'wallet':
-      document.getElementById('pageWallet').classList.remove('hidden');
-      switchWalletTab('recharge');
-      break;
-    case 'signin':
-      document.getElementById('pageSignin').classList.remove('hidden');
-      loadSignStats();
-      loadSignLogs(1);
-      loadTaskDefinitions();
-      loadTaskLogs(1);
-      break;
-    case 'settings':
-      document.getElementById('pageSettings').classList.remove('hidden');
-      loadLangList();
-      break;
+  // Hide all pages, show target
+  document.querySelectorAll('.page').forEach(el => el.classList.add('hidden'));
+  const pageEl = document.querySelector('#pageWrapper_' + page + ' .page');
+  if (pageEl) {
+    pageEl.classList.remove('hidden');
   }
+
+  // Load page data
+  const loader = PAGE_LOADERS[page];
+  if (loader) loader();
 }
 
 /** Refresh the currently active page's data */
@@ -197,6 +212,6 @@ function refreshCurrentPage() {
     case 'managers': loadManagerList(managerData.page || 1); break;
     case 'wallet': switchWalletTab(currentWalletTab); break;
     case 'signin': loadSignStats(); loadSignLogs(signinData.page || 1); loadTaskDefinitions(); loadTaskLogs(taskLogData.page || 1); break;
-    case 'settings': loadLangList(); break;
+    case 'settings': loadBannerConfig(); loadAboutConfig(); loadLangList(); break;
   }
 }

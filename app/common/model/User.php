@@ -78,6 +78,14 @@ class User extends Model
     }
 
     /**
+     * 关联：用户钱包
+     */
+    public function wallet()
+    {
+        return $this->hasOne(Wallet::class, 'user_id');
+    }
+
+    /**
      * 关联：用户发布的启事
      */
     public function posts()

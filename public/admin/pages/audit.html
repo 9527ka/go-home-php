@@ -1,0 +1,68 @@
+<div id="pageAudit" class="page">
+  <div class="page-header">
+    <h2>📋 内容审核</h2>
+    <p>审核用户发布的寻人/寻宠启事</p>
+  </div>
+  <div class="section-card">
+    <div class="filter-bar">
+      <select id="auditStatusFilter">
+        <option value="">全部状态</option>
+        <option value="0">待审核</option>
+        <option value="1">已发布</option>
+        <option value="2">已找到</option>
+        <option value="3">已关闭</option>
+        <option value="4">已驳回</option>
+      </select>
+      <button class="btn-filter" onclick="loadAuditList(1)">筛选</button>
+    </div>
+    <div id="auditLoading" class="loading-spinner hidden"><div class="spinner"></div>加载中...</div>
+    <div id="auditEmpty" class="empty-state hidden"><div class="icon">✅</div><p>暂无待审核内容</p></div>
+    <table id="auditTable" class="hidden">
+      <thead><tr><th>ID</th><th>分类</th><th>名字</th><th>发布者</th><th>发布时间</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody id="auditTbody"></tbody>
+    </table>
+    <div class="pagination" id="auditPagination"></div>
+  </div>
+</div>
+
+<!-- Audit Modals -->
+<div class="modal-overlay" id="modalViewPost">
+  <div class="modal" style="width:580px;">
+    <h3>📄 启事详情</h3>
+    <div id="postDetailContent"></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modalViewPost')">关闭</button>
+      <button class="btn-sm btn-approve" id="modalBtnApprove" onclick="doApprove()">✓ 通过</button>
+      <button class="btn-sm btn-reject" id="modalBtnReject" onclick="showRejectModal()">✗ 驳回</button>
+      <button class="btn-sm btn-takedown" id="modalBtnTakedown" onclick="showTakedownModal()">⚠ 下架</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalReject">
+  <div class="modal">
+    <h3>✗ 驳回启事</h3>
+    <div class="form-group">
+      <label>驳回原因（必填）</label>
+      <textarea id="rejectRemark" placeholder="请输入驳回原因，将通知给发布者..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modalReject')">取消</button>
+      <button class="btn-confirm warning" onclick="doReject()">确认驳回</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalTakedown">
+  <div class="modal">
+    <h3>⚠ 下架启事</h3>
+    <div class="form-group">
+      <label>下架原因</label>
+      <textarea id="takedownRemark" placeholder="请输入下架原因..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modalTakedown')">取消</button>
+      <button class="btn-confirm danger" onclick="doTakedown()">确认下架</button>
+    </div>
+  </div>
+</div>

@@ -32,6 +32,7 @@ Route::group('', function () {
     // 用户管理
     Route::get('user/list', 'UserManage/list');
     Route::post('user/status', 'UserManage/updateStatus');
+    Route::post('user/update', 'UserManage/update');
 
     // 线索管理
     Route::get('clue/list', 'ClueManage/list');

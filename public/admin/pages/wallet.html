@@ -1,0 +1,183 @@
+<div id="pageWallet" class="page">
+  <div class="page-header">
+    <h2>💰 钱包管理</h2>
+    <p>管理充值、提现、流水、红包及钱包配置</p>
+  </div>
+
+  <!-- Wallet Sub Tabs -->
+  <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;">
+    <button class="btn-filter wallet-tab active" data-wtab="recharge" onclick="switchWalletTab('recharge')" style="background:#667eea;">💳 充值审核</button>
+    <button class="btn-filter wallet-tab" data-wtab="withdrawal" onclick="switchWalletTab('withdrawal')" style="background:#6b7280;">💸 提现审核</button>
+    <button class="btn-filter wallet-tab" data-wtab="transactions" onclick="switchWalletTab('transactions')" style="background:#6b7280;">📄 流水记录</button>
+    <button class="btn-filter wallet-tab" data-wtab="redpacket" onclick="switchWalletTab('redpacket')" style="background:#6b7280;">🧧 红包记录</button>
+    <button class="btn-filter wallet-tab" data-wtab="wsettings" onclick="switchWalletTab('wsettings')" style="background:#6b7280;">⚙️ 钱包配置</button>
+  </div>
+
+  <!-- Recharge Tab -->
+  <div id="walletTabRecharge" class="section-card wallet-tab-content">
+    <div class="section-title">💳 充值订单</div>
+    <div class="filter-bar">
+      <select id="rechargeStatusFilter">
+        <option value="">全部状态</option>
+        <option value="0">待审核</option>
+        <option value="1">已通过</option>
+        <option value="2">已拒绝</option>
+      </select>
+      <button class="btn-filter" onclick="loadRechargeList(1)">筛选</button>
+    </div>
+    <div id="rechargeLoading" class="loading-spinner hidden"><div class="spinner"></div>加载中...</div>
+    <div id="rechargeEmpty" class="empty-state hidden"><div class="icon">💳</div><p>暂无充值订单</p></div>
+    <table id="rechargeTable" class="hidden">
+      <thead><tr><th>ID</th><th>用户</th><th>金额</th><th>支付方式</th><th>凭证</th><th>时间</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody id="rechargeTbody"></tbody>
+    </table>
+    <div class="pagination" id="rechargePagination"></div>
+  </div>
+
+  <!-- Withdrawal Tab -->
+  <div id="walletTabWithdrawal" class="section-card wallet-tab-content hidden">
+    <div class="section-title">💸 提现订单</div>
+    <div class="filter-bar">
+      <select id="withdrawalStatusFilter">
+        <option value="">全部状态</option>
+        <option value="0">待审核</option>
+        <option value="1">已通过</option>
+        <option value="2">已拒绝</option>
+      </select>
+      <button class="btn-filter" onclick="loadWithdrawalList(1)">筛选</button>
+    </div>
+    <div id="withdrawalLoading" class="loading-spinner hidden"><div class="spinner"></div>加载中...</div>
+    <div id="withdrawalEmpty" class="empty-state hidden"><div class="icon">💸</div><p>暂无提现订单</p></div>
+    <table id="withdrawalTable" class="hidden">
+      <thead><tr><th>ID</th><th>用户</th><th>金额</th><th>手续费</th><th>实际到账</th><th>收款信息</th><th>时间</th><th>状态</th><th>操作</th></tr></thead>
+      <tbody id="withdrawalTbody"></tbody>
+    </table>
+    <div class="pagination" id="withdrawalPagination"></div>
+  </div>
+
+  <!-- Transactions Tab -->
+  <div id="walletTabTransactions" class="section-card wallet-tab-content hidden">
+    <div class="section-title">📄 流水记录</div>
+    <div class="filter-bar">
+      <input type="text" id="txnUserId" placeholder="用户ID" style="width:100px;">
+      <select id="txnTypeFilter">
+        <option value="">全部类型</option>
+        <option value="1">充值</option>
+        <option value="2">提现</option>
+        <option value="3">提现退回</option>
+        <option value="4">发红包</option>
+        <option value="5">收红包</option>
+        <option value="6">打赏</option>
+        <option value="7">置顶</option>
+        <option value="8">红包退回</option>
+      </select>
+      <button class="btn-filter" onclick="loadTransactionList(1)">筛选</button>
+    </div>
+    <div id="txnLoading" class="loading-spinner hidden"><div class="spinner"></div>加载中...</div>
+    <div id="txnEmpty" class="empty-state hidden"><div class="icon">📄</div><p>暂无流水记录</p></div>
+    <table id="txnTable" class="hidden">
+      <thead><tr><th>ID</th><th>用户</th><th>类型</th><th>金额</th><th>变动前</th><th>变动后</th><th>备注</th><th>时间</th></tr></thead>
+      <tbody id="txnTbody"></tbody>
+    </table>
+    <div class="pagination" id="txnPagination"></div>
+  </div>
+
+  <!-- Red Packet Tab -->
+  <div id="walletTabRedpacket" class="section-card wallet-tab-content hidden">
+    <div class="section-title">🧧 红包记录</div>
+    <div id="rpLoading" class="loading-spinner hidden"><div class="spinner"></div>加载中...</div>
+    <div id="rpEmpty" class="empty-state hidden"><div class="icon">🧧</div><p>暂无红包记录</p></div>
+    <table id="rpTable" class="hidden">
+      <thead><tr><th>ID</th><th>发送者</th><th>总金额</th><th>个数</th><th>剩余金额</th><th>祝福语</th><th>类型</th><th>状态</th><th>时间</th><th>操作</th></tr></thead>
+      <tbody id="rpTbody"></tbody>
+    </table>
+    <div class="pagination" id="rpPagination"></div>
+  </div>
+
+  <!-- Wallet Settings Tab -->
+  <div id="walletTabWsettings" class="section-card wallet-tab-content hidden">
+    <div class="section-title">⚙️ 钱包配置</div>
+    <div id="wsLoading" class="loading-spinner hidden"><div class="spinner"></div>加载中...</div>
+    <table id="wsTable">
+      <thead><tr><th>配置项</th><th>当前值</th><th>说明</th><th>操作</th></tr></thead>
+      <tbody id="wsTbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Wallet Modals -->
+<div class="modal-overlay" id="modalRechargeReject">
+  <div class="modal">
+    <h3>❌ 拒绝充值</h3>
+    <div class="form-group">
+      <label>拒绝原因</label>
+      <textarea id="rechargeRejectRemark" placeholder="请输入拒绝原因..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modalRechargeReject')">取消</button>
+      <button class="btn-confirm danger" onclick="doRechargeReject()">确认拒绝</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalWithdrawalApprove">
+  <div class="modal">
+    <h3>✅ 通过提现</h3>
+    <div class="form-group">
+      <label>交易哈希/备注（选填）</label>
+      <input type="text" id="withdrawalTxHash" placeholder="转账凭证或交易哈希...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modalWithdrawalApprove')">取消</button>
+      <button class="btn-confirm" onclick="doWithdrawalApprove()">确认通过</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalWithdrawalReject">
+  <div class="modal">
+    <h3>❌ 拒绝提现</h3>
+    <div class="form-group">
+      <label>拒绝原因</label>
+      <textarea id="withdrawalRejectRemark" placeholder="请输入拒绝原因..."></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modalWithdrawalReject')">取消</button>
+      <button class="btn-confirm danger" onclick="doWithdrawalReject()">确认拒绝</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalRpClaims">
+  <div class="modal" style="width:560px;">
+    <h3>🧧 领取详情</h3>
+    <div id="rpClaimsLoading" class="loading-spinner hidden"><div class="spinner"></div>加载中...</div>
+    <table id="rpClaimsTable" class="hidden">
+      <thead><tr><th>用户</th><th>金额</th><th>领取时间</th></tr></thead>
+      <tbody id="rpClaimsTbody"></tbody>
+    </table>
+    <div id="rpClaimsEmpty" class="empty-state hidden"><div class="icon">🧧</div><p>暂无领取记录</p></div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modalRpClaims')">关闭</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalWalletSetting">
+  <div class="modal">
+    <h3>⚙️ 编辑配置</h3>
+    <input type="hidden" id="wsKey">
+    <div class="form-group">
+      <label id="wsLabel">配置项</label>
+      <input type="text" id="wsValue" placeholder="配置值">
+    </div>
+    <div class="form-group">
+      <label>说明</label>
+      <p id="wsDesc" style="font-size:13px;color:#666;"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modalWalletSetting')">取消</button>
+      <button class="btn-confirm" onclick="saveWalletSetting()">保存</button>
+    </div>
+  </div>
+</div>

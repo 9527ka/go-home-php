@@ -1,0 +1,59 @@
+<div id="pageManagers" class="page">
+  <div class="page-header">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <h2>🛡️ 管理员管理</h2>
+        <p>管理后台系统管理员账号</p>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-filter" onclick="refreshCurrentPage()" style="background:#6b7280;" title="刷新数据">🔄 刷新</button>
+        <button class="btn-filter" onclick="showCreateManager()">+ 新增管理员</button>
+      </div>
+    </div>
+  </div>
+  <div class="section-card">
+    <div id="managerLoading" class="loading-spinner hidden"><div class="spinner"></div>加载中...</div>
+    <table id="managerTable">
+      <thead><tr><th>ID</th><th>用户名</th><th>真实姓名</th><th>角色</th><th>状态</th><th>最后登录</th><th>操作</th></tr></thead>
+      <tbody id="managerTbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Manager Modal -->
+<div class="modal-overlay" id="modalManager">
+  <div class="modal">
+    <h3 id="managerModalTitle">🛡️ 管理员</h3>
+    <input type="hidden" id="managerId">
+    <div class="form-group">
+      <label>用户名</label>
+      <input type="text" id="managerUsername" placeholder="登录用户名">
+    </div>
+    <div class="form-group">
+      <label>密码</label>
+      <input type="password" id="managerPassword" placeholder="不修改请留空">
+    </div>
+    <div class="form-group">
+      <label>真实姓名</label>
+      <input type="text" id="managerRealname">
+    </div>
+    <div class="form-group">
+      <label>角色</label>
+      <select id="managerRole" style="width:100%;height:44px;border:1.5px solid #e0e0e0;border-radius:10px;padding:0 12px;">
+        <option value="1">审核员</option>
+        <option value="2">超级管理员</option>
+      </select>
+    </div>
+    <div class="form-group" id="managerStatusGroup">
+      <label>状态</label>
+      <select id="managerStatus" style="width:100%;height:44px;border:1.5px solid #e0e0e0;border-radius:10px;padding:0 12px;">
+        <option value="1">正常</option>
+        <option value="2">禁用</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal('modalManager')">取消</button>
+      <button class="btn-confirm" onclick="saveManager()">保存</button>
+    </div>
+  </div>
+</div>
