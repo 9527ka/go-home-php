@@ -263,7 +263,7 @@ class WalletService
         }
 
         Db::transaction(function () use ($order, $adminId, $txHash) {
-            self::deductFrozen($order->user_id, $order->amount);
+            self::deductFrozen($order->user_id, (float)$order->amount);
 
             $order->status       = WithdrawalOrder::STATUS_COMPLETED;
             $order->admin_id     = $adminId;
@@ -284,7 +284,7 @@ class WalletService
         }
 
         Db::transaction(function () use ($order, $adminId, $remark) {
-            self::unfreeze($order->user_id, $order->amount);
+            self::unfreeze($order->user_id, (float)$order->amount);
 
             // 记录退回流水
             $wallet = Wallet::where('user_id', $order->user_id)->find();

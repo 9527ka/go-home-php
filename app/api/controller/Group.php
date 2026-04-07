@@ -28,6 +28,9 @@ class Group extends BaseApi
         $avatar = trim((string)$this->request->post('avatar', ''));
         $description = trim((string)$this->request->post('description', ''));
         $memberIds = $this->request->post('member_ids', []);
+        if (is_array($memberIds)) {
+            $memberIds = array_values(array_unique(array_map('intval', $memberIds)));
+        }
 
         if (empty($name)) {
             return $this->error(ErrorCode::PARAM_MISSING, '请输入群名');
@@ -75,13 +78,18 @@ class Group extends BaseApi
                     ->find();
                 if ($exists) continue;
 
-                GroupMember::create([
-                    'group_id'  => $group->id,
-                    'user_id'   => $memberId,
-                    'role'      => 0,
-                    'joined_at' => date('Y-m-d H:i:s'),
-                ]);
-                $count++;
+                try {
+                    GroupMember::create([
+                        'group_id'  => $group->id,
+                        'user_id'   => $memberId,
+                        'role'      => 0,
+                        'joined_at' => date('Y-m-d H:i:s'),
+                    ]);
+                    $count++;
+                } catch (\Exception $e) {
+                    // 唯一键冲突等异常，跳过
+                    continue;
+                }
             }
             $group->member_count = $count;
             $group->save();

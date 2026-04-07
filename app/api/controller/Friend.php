@@ -6,6 +6,7 @@ namespace app\api\controller;
 use app\common\enum\ErrorCode;
 use app\common\model\FriendRequest;
 use app\common\model\Friendship;
+use app\common\model\PrivateMessage;
 use app\common\model\User;
 use think\Response;
 
@@ -24,12 +25,13 @@ class Friend extends BaseApi
 
         $userId = $this->getUserId();
 
-        // 仅按 user_code 精确匹配 / 昵称模糊匹配（不再支持手机号搜索）
+        // 按 user_code 精确匹配 / 昵称模糊匹配 / 手机号精确匹配
         $users = User::where('id', '<>', $userId)
             ->where('status', 1)
             ->where(function ($q) use ($keyword) {
                 $q->whereOr('user_code', $keyword)
-                  ->whereOr('nickname', 'like', "%{$keyword}%");
+                  ->whereOr('nickname', 'like', "%{$keyword}%")
+                  ->whereOr('account', $keyword);
             })
             ->field('id,nickname,avatar,user_code')
             ->limit(20)
@@ -192,6 +194,20 @@ class Friend extends BaseApi
 
         // 创建双向好友关系
         $this->createFriendship($userId, (int)$req->from_id);
+
+        // 自动发送一条问候消息
+        $greeting = '我通过了你的好友验证请求，现在我们可以开始聊天了';
+        $pm = PrivateMessage::create([
+            'from_id'    => $userId,
+            'to_id'      => (int)$req->from_id,
+            'content'    => $greeting,
+            'msg_type'   => 'text',
+            'is_read'    => 0,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        // WebSocket 推送问候消息给对方
+        $this->pushPrivateMessage($pm, $userId, (int)$req->from_id);
 
         // WebSocket 推送通知给对方（好友请求被接受）
         $this->pushFriendAccepted((int)$req->from_id, $userId);
@@ -359,6 +375,32 @@ class Friend extends BaseApi
             $this->sendToWebSocket($toUserId, $data);
         } catch (\Exception $e) {
             trace('[Friend] pushFriendAccepted error: ' . $e->getMessage(), 'error');
+        }
+    }
+
+    /**
+     * 推送私聊消息（WebSocket）
+     */
+    private function pushPrivateMessage(PrivateMessage $pm, int $fromUserId, int $toUserId): void
+    {
+        try {
+            $fromUser = User::field('id,nickname,avatar,user_code')->find($fromUserId);
+            $data = json_encode([
+                'type'       => 'private_message',
+                'id'         => $pm->id,
+                'from_id'    => $fromUserId,
+                'to_id'      => $toUserId,
+                'user_id'    => $fromUserId,
+                'nickname'   => $fromUser ? $fromUser->nickname : '',
+                'avatar'     => $fromUser ? $fromUser->avatar : '',
+                'content'    => $pm->content,
+                'msg_type'   => $pm->msg_type,
+                'created_at' => $pm->created_at,
+            ], JSON_UNESCAPED_UNICODE);
+
+            $this->sendToWebSocket($toUserId, $data);
+        } catch (\Exception $e) {
+            trace('[Friend] pushPrivateMessage error: ' . $e->getMessage(), 'error');
         }
     }
 

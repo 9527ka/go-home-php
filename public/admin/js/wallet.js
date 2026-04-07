@@ -123,7 +123,7 @@ PAGE_TEMPLATES['wallet'] = `
   <div class="modal">
     <h3>✅ 通过提现</h3>
     <div class="form-group">
-      <label>交易哈希/备注（选填）</label>
+      <label>交易哈希/备注</label>
       <input type="text" id="withdrawalTxHash" placeholder="转账凭证或交易哈希...">
     </div>
     <div class="modal-footer">
@@ -267,7 +267,7 @@ async function loadRechargeList(page) {
       <td>${escHtml(r.payment_method || '-')}</td>
       <td>${r.proof_image ? `<a href="${r.proof_image}" target="_blank" style="color:#667eea;">查看</a>` : '-'}</td>
       <td>${formatTime(r.created_at)}</td>
-      <td><span class="status-tag ${ORDER_STATUS_CLASS[st]}">${ORDER_STATUS[st]}</span></td>
+      <td><span class="status-tag ${ORDER_STATUS_CLASS[st]}">${ORDER_STATUS[st]}</span>${st === 2 && r.admin_remark ? `<div style="font-size:11px;color:#ef4444;margin-top:2px;">${escHtml(r.admin_remark)}</div>` : ''}</td>
       <td><div class="btn-group">
         ${st === 0 ? `<button class="btn-sm btn-approve" onclick="doRechargeApprove(${r.id})">通过</button>
         <button class="btn-sm btn-reject" onclick="currentRechargeId=${r.id};document.getElementById('rechargeRejectRemark').value='';openModal('modalRechargeReject')">拒绝</button>` : '-'}
@@ -324,7 +324,7 @@ async function loadWithdrawalList(page) {
       <td style="font-weight:600;">¥${actual}</td>
       <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escHtml(w.account_info || '')}">${escHtml(w.account_info || w.withdraw_account || '-')}</td>
       <td>${formatTime(w.created_at)}</td>
-      <td><span class="status-tag ${ORDER_STATUS_CLASS[st]}">${ORDER_STATUS[st]}</span></td>
+      <td><span class="status-tag ${ORDER_STATUS_CLASS[st]}">${ORDER_STATUS[st]}</span>${st === 2 && w.admin_remark ? `<div style="font-size:11px;color:#ef4444;margin-top:2px;">${escHtml(w.admin_remark)}</div>` : ''}</td>
       <td><div class="btn-group">
         ${st === 0 ? `<button class="btn-sm btn-approve" onclick="currentWithdrawalId=${w.id};document.getElementById('withdrawalTxHash').value='';openModal('modalWithdrawalApprove')">通过</button>
         <button class="btn-sm btn-reject" onclick="currentWithdrawalId=${w.id};document.getElementById('withdrawalRejectRemark').value='';openModal('modalWithdrawalReject')">拒绝</button>` : '-'}
