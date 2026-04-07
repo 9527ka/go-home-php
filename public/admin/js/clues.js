@@ -3,6 +3,36 @@
  * Manage user-submitted clues linked to posts.
  */
 
+PAGE_TEMPLATES['clues'] = `
+<div id="pageClues" class="page">
+  <div class="page-header">
+    <h2>💡 线索管理</h2>
+    <p>管理用户提供的线索信息</p>
+  </div>
+  <div class="section-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div class="filter-bar" style="margin:0;flex:1;">
+        <input type="text" id="cluePostId" placeholder="关联启事ID" style="width:120px;">
+        <select id="clueStatusFilter">
+          <option value="">全部</option>
+          <option value="1">正常</option>
+          <option value="3">被举报</option>
+        </select>
+        <button class="btn-filter" onclick="loadClueList(1)">搜索</button>
+      </div>
+      <button class="btn-filter" onclick="refreshCurrentPage()" style="background:#6b7280;" title="刷新数据">🔄 刷新</button>
+    </div>
+    <div id="clueLoading" class="loading-spinner hidden"><div class="spinner"></div>加载中...</div>
+    <div id="clueEmpty" class="empty-state hidden"><div class="icon">💡</div><p>暂无线索数据</p></div>
+    <table id="clueTable" class="hidden">
+      <thead><tr><th>ID</th><th>关联启事</th><th>发布者</th><th>内容</th><th>状态</th><th>时间</th><th>操作</th></tr></thead>
+      <tbody id="clueTbody"></tbody>
+    </table>
+    <div class="pagination" id="cluePagination"></div>
+  </div>
+</div>
+`;
+
 let clueData = { list: [], page: 1, total: 0 };
 
 async function loadClueList(page) {

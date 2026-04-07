@@ -13,6 +13,9 @@ let currentReportId = null;
 // Track which pages have been loaded into the DOM
 const loadedPages = {};
 
+// Page HTML templates — registered by each page's JS file
+const PAGE_TEMPLATES = {};
+
 // ======================== Status/Category Maps ========================
 const POST_STATUS = { 0: '待审核', 1: '已发布', 2: '已找到', 3: '已关闭', 4: '已驳回' };
 const POST_STATUS_CLASS = { 0: 'pending', 1: 'active', 2: 'found', 3: 'closed', 4: 'rejected' };
@@ -27,36 +30,33 @@ const REPORT_STATUS_CLASS = { 0: 'pending', 1: 'active', 2: 'rejected', 3: 'clos
 // ======================== Page Loading ========================
 
 /**
- * Fetch a page HTML fragment from pages/ directory and insert it into the DOM.
- * Returns a promise that resolves when the page is ready.
+ * Load a page's HTML template into the DOM from PAGE_TEMPLATES registry.
+ * Each page JS file registers its HTML via PAGE_TEMPLATES['pageName'] = `...`;
  */
-async function loadPageHTML(page) {
-  if (loadedPages[page]) return; // already loaded
+function loadPageHTML(page) {
+  if (loadedPages[page]) return;
+
+  const html = PAGE_TEMPLATES[page];
+  if (!html) {
+    console.error('[App] No template registered for page:', page);
+    toast('页面模板未注册: ' + page, 'error');
+    return;
+  }
 
   const container = document.getElementById('mainContent');
-  try {
-    const resp = await fetch('pages/' + page + '.html');
-    if (!resp.ok) throw new Error('Failed to load page: ' + page);
-    const html = await resp.text();
+  const wrapper = document.createElement('div');
+  wrapper.id = 'pageWrapper_' + page;
+  wrapper.innerHTML = html;
+  container.appendChild(wrapper);
 
-    // Create a wrapper to hold this page's content (page div + modals)
-    const wrapper = document.createElement('div');
-    wrapper.id = 'pageWrapper_' + page;
-    wrapper.innerHTML = html;
-    container.appendChild(wrapper);
-
-    // Bind modal overlay click-to-close for newly added modals
-    wrapper.querySelectorAll('.modal-overlay').forEach(el => {
-      el.addEventListener('click', (e) => {
-        if (e.target === el) el.classList.remove('show');
-      });
+  // Bind modal overlay click-to-close for newly added modals
+  wrapper.querySelectorAll('.modal-overlay').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if (e.target === el) el.classList.remove('show');
     });
+  });
 
-    loadedPages[page] = true;
-  } catch (err) {
-    console.error('[App] loadPageHTML error:', err);
-    toast('页面加载失败: ' + page, 'error');
-  }
+  loadedPages[page] = true;
 }
 
 // ======================== Initialization ========================
@@ -178,7 +178,7 @@ const PAGE_LOADERS = {
   settings:   () => { loadBannerConfig(); loadAboutConfig(); loadLangList(); },
 };
 
-async function switchPage(page) {
+function switchPage(page) {
   currentPage = page;
 
   // Update nav active state
@@ -187,7 +187,7 @@ async function switchPage(page) {
   });
 
   // Load page HTML if not yet in DOM
-  await loadPageHTML(page);
+  loadPageHTML(page);
 
   // Hide all pages, show target
   document.querySelectorAll('.page').forEach(el => el.classList.add('hidden'));
