@@ -26,14 +26,18 @@ class WalletManage
      */
     public function rechargeList(Request $request): Response
     {
-        $page   = max(1, (int)$request->get('page', 1));
-        $status = $request->get('status');
+        $page        = max(1, (int)$request->get('page', 1));
+        $status      = $request->get('status');
+        $paymentType = $request->get('payment_type');
 
         $query = RechargeOrder::with(['user'])
             ->order('created_at', 'desc');
 
         if (!is_null($status) && $status !== '') {
             $query->where('status', (int)$status);
+        }
+        if (!is_null($paymentType) && $paymentType !== '') {
+            $query->where('payment_type', (int)$paymentType);
         }
 
         $list = $query->paginate(['list_rows' => 20, 'page' => $page]);

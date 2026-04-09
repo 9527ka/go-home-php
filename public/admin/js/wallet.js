@@ -27,6 +27,11 @@ PAGE_TEMPLATES['wallet'] = `
         <option value="1">已通过</option>
         <option value="2">已拒绝</option>
       </select>
+      <select id="rechargePaymentTypeFilter">
+        <option value="">全部支付方式</option>
+        <option value="0">USDT手动</option>
+        <option value="1">Apple IAP</option>
+      </select>
       <button class="btn-filter" onclick="loadRechargeList(1)">筛选</button>
     </div>
     <div id="rechargeLoading" class="loading-spinner hidden"><div class="spinner"></div>加载中...</div>
@@ -248,7 +253,8 @@ async function loadRechargeList(page) {
   loading.classList.remove('hidden'); empty.classList.add('hidden'); table.classList.add('hidden'); pagination.innerHTML = '';
 
   const status = document.getElementById('rechargeStatusFilter').value;
-  const res = await apiGet('/wallet/recharge/list', { page, status: status || undefined });
+  const paymentType = document.getElementById('rechargePaymentTypeFilter').value;
+  const res = await apiGet('/wallet/recharge/list', { page, status: status || undefined, payment_type: paymentType !== '' ? paymentType : undefined });
   loading.classList.add('hidden');
   if (res.code !== 0) return toast(res.msg, 'error');
 
@@ -260,17 +266,19 @@ async function loadRechargeList(page) {
   table.classList.remove('hidden');
   document.getElementById('rechargeTbody').innerHTML = rechargeData.list.map(r => {
     const st = r.status ?? 0;
+    const isIap = r.payment_type === 1;
+    const paymentLabel = isIap ? '<span style="color:#667eea;font-weight:500;">Apple IAP</span>' : 'USDT手动';
     return `<tr>
       <td>#${r.id}</td>
       <td>${r.user ? escHtml(r.user.nickname || '用户'+r.user_id) : r.user_id}</td>
       <td style="font-weight:600;color:#10b981;">¥${parseFloat(r.amount).toFixed(2)}</td>
-      <td>${escHtml(r.payment_method || '-')}</td>
-      <td>${r.proof_image ? `<a href="${r.proof_image}" target="_blank" style="color:#667eea;">查看</a>` : '-'}</td>
+      <td>${paymentLabel}${isIap && r.iap_product_id ? `<div style="font-size:11px;color:#999;">${escHtml(r.iap_product_id)}</div>` : ''}</td>
+      <td>${r.screenshot_url ? `<a href="${r.screenshot_url}" target="_blank" style="color:#667eea;">查看</a>` : '-'}</td>
       <td>${formatTime(r.created_at)}</td>
       <td><span class="status-tag ${ORDER_STATUS_CLASS[st]}">${ORDER_STATUS[st]}</span>${st === 2 && r.admin_remark ? `<div style="font-size:11px;color:#ef4444;margin-top:2px;">${escHtml(r.admin_remark)}</div>` : ''}</td>
       <td><div class="btn-group">
-        ${st === 0 ? `<button class="btn-sm btn-approve" onclick="doRechargeApprove(${r.id})">通过</button>
-        <button class="btn-sm btn-reject" onclick="currentRechargeId=${r.id};document.getElementById('rechargeRejectRemark').value='';openModal('modalRechargeReject')">拒绝</button>` : '-'}
+        ${st === 0 && !isIap ? `<button class="btn-sm btn-approve" onclick="doRechargeApprove(${r.id})">通过</button>
+        <button class="btn-sm btn-reject" onclick="currentRechargeId=${r.id};document.getElementById('rechargeRejectRemark').value='';openModal('modalRechargeReject')">拒绝</button>` : (isIap && st === 1 ? '<span style="font-size:12px;color:#10b981;">自动到账</span>' : '-')}
       </div></td>
     </tr>`;
   }).join('');
