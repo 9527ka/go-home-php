@@ -83,6 +83,7 @@ class WalletSetting
         'about_free_service'     => ['description' => '关于我们 - 公益免费说明', 'type' => 'text'],
         'about_disclaimer'       => ['description' => '关于我们 - 免责声明', 'type' => 'text'],
         'about_privacy'          => ['description' => '关于我们 - 隐私政策', 'type' => 'text'],
+        'service_users_per_account' => ['description' => '每个客服账号服务用户上限', 'type' => 'number'],
     ];
 
     /**

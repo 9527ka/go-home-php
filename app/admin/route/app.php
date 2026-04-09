@@ -33,6 +33,7 @@ Route::group('', function () {
     Route::get('user/list', 'UserManage/list');
     Route::post('user/status', 'UserManage/updateStatus');
     Route::post('user/update', 'UserManage/update');
+    Route::post('user/type', 'UserManage/updateUserType');
 
     // 线索管理
     Route::get('clue/list', 'ClueManage/list');

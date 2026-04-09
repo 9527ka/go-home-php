@@ -18,6 +18,6 @@ class Friendship extends Model
     public function friend()
     {
         return $this->belongsTo(User::class, 'friend_id')
-            ->field('id,nickname,avatar,account,user_code');
+            ->field('id,nickname,avatar,account,user_code,user_type');
     }
 }

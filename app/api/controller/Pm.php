@@ -88,7 +88,7 @@ class Pm extends BaseApi
             if (!$lastMsg) continue;
 
             // 好友信息
-            $friend = \app\common\model\User::field('id,nickname,avatar,user_code')
+            $friend = \app\common\model\User::field('id,nickname,avatar,user_code,user_type')
                 ->find($friendId);
             if (!$friend) continue;
 
@@ -103,6 +103,7 @@ class Pm extends BaseApi
                 'target_type'   => 'private',
                 'name'          => $friend->nickname,
                 'avatar'        => $friend->avatar,
+                'user_type'     => $friend->user_type ?? 0,
                 'last_message'  => $lastMsg->content,
                 'last_msg_type' => $lastMsg->msg_type,
                 'last_msg_time' => $lastMsg->created_at,

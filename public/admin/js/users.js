@@ -19,6 +19,11 @@ PAGE_TEMPLATES['users'] = `
           <option value="2">禁言</option>
           <option value="3">封禁</option>
         </select>
+        <select id="userTypeFilter">
+          <option value="">全部类型</option>
+          <option value="0">普通用户</option>
+          <option value="1">官方客服</option>
+        </select>
         <button class="btn-filter" onclick="loadUserList(1)">搜索</button>
       </div>
       <button class="btn-filter" onclick="refreshCurrentPage()" style="background:#6b7280;" title="刷新数据">🔄 刷新</button>
@@ -26,7 +31,7 @@ PAGE_TEMPLATES['users'] = `
     <div id="userLoading" class="loading-spinner hidden"><div class="spinner"></div>加载中...</div>
     <div id="userEmpty" class="empty-state hidden"><div class="icon">👥</div><p>暂无用户数据</p></div>
     <table id="userTable" class="hidden">
-      <thead><tr><th>ID</th><th>头像</th><th>昵称</th><th>账号</th><th>余额</th><th>状态</th><th>注册时间</th><th>操作</th></tr></thead>
+      <thead><tr><th>ID</th><th>头像</th><th>昵称</th><th>账号</th><th>角色</th><th>余额</th><th>状态</th><th>注册时间</th><th>操作</th></tr></thead>
       <tbody id="userTbody"></tbody>
     </table>
     <div class="pagination" id="userPagination"></div>
@@ -62,6 +67,7 @@ let userData = { list: [], page: 1, total: 0 };
 async function loadUserList(page) {
   const keyword = document.getElementById('userKeyword').value;
   const status = document.getElementById('userStatusFilter').value;
+  const userType = document.getElementById('userTypeFilter').value;
   const loading = document.getElementById('userLoading');
   const empty = document.getElementById('userEmpty');
   const table = document.getElementById('userTable');
@@ -72,7 +78,7 @@ async function loadUserList(page) {
   table.classList.add('hidden');
   pagination.innerHTML = '';
 
-  const res = await apiGet('/user/list', { page, keyword, status });
+  const res = await apiGet('/user/list', { page, keyword, status, user_type: userType !== '' ? userType : undefined });
   loading.classList.add('hidden');
 
   if (res.code !== 0) return toast(res.msg, 'error');
@@ -84,17 +90,22 @@ async function loadUserList(page) {
   }
 
   table.classList.remove('hidden');
-  document.getElementById('userTbody').innerHTML = userData.list.map(u => `
-    <tr>
+  document.getElementById('userTbody').innerHTML = userData.list.map(u => {
+    const isService = u.user_type === 1;
+    return `<tr>
       <td>#${u.id}</td>
       <td><img src="${u.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.nickname)}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;"></td>
       <td>${escHtml(u.nickname)}</td>
       <td>${escHtml(u.account)}</td>
+      <td>${isService ? '<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;color:#fff;background:#4A90D9;">官方客服</span>' : '<span style="color:#999;font-size:12px;">普通用户</span>'}</td>
       <td>${u.wallet ? parseFloat(u.wallet.balance).toFixed(2) : '-'}</td>
       <td><span class="status-tag ${u.status === 1 ? 'active' : u.status === 2 ? 'pending' : 'rejected'}">${u.status === 1 ? '正常' : u.status === 2 ? '禁言' : '封禁'}</span></td>
       <td>${formatTime(u.created_at)}</td>
       <td style="white-space:nowrap;">
         <button class="btn-sm btn-view" onclick="editUser(${u.id})">编辑</button>
+        ${isService
+          ? `<button class="btn-sm btn-view" onclick="toggleUserType(${u.id}, 0)" style="margin-left:4px;background:#6b7280;">取消客服</button>`
+          : `<button class="btn-sm btn-view" onclick="toggleUserType(${u.id}, 1)" style="margin-left:4px;background:#4A90D9;">设为客服</button>`}
         ${u.status === 1 ? `
           <button class="btn-sm btn-view" onclick="updateUserStatus(${u.id}, 2)" style="margin-left:4px;background:#f59e0b;">禁言</button>
           <button class="btn-sm btn-view" onclick="updateUserStatus(${u.id}, 3)" style="margin-left:4px;background:#ef4444;">封禁</button>
@@ -102,9 +113,21 @@ async function loadUserList(page) {
           <button class="btn-sm btn-view" onclick="updateUserStatus(${u.id}, 1)" style="margin-left:4px;background:#10b981;">解封</button>
         `}
       </td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
   renderPagination(pagination, userData.page, Math.ceil(userData.total / 20), loadUserList);
+}
+
+async function toggleUserType(id, userType) {
+  const label = userType === 1 ? '设为官方客服' : '取消客服身份';
+  if (!confirm(`确定要${label}吗？`)) return;
+  const res = await apiPost('/user/type', { id, user_type: userType });
+  if (res.code === 0) {
+    toast(res.msg || '操作成功');
+    loadUserList(userData.page);
+  } else {
+    toast(res.msg, 'error');
+  }
 }
 
 async function updateUserStatus(id, status) {

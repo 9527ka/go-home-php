@@ -33,7 +33,7 @@ class Friend extends BaseApi
                   ->whereOr('nickname', 'like', "%{$keyword}%")
                   ->whereOr('account', $keyword);
             })
-            ->field('id,nickname,avatar,user_code')
+            ->field('id,nickname,avatar,user_code,user_type')
             ->limit(20)
             ->select()
             ->toArray();
@@ -269,6 +269,7 @@ class Friend extends BaseApi
                 'avatar'     => $item['friend']['avatar'] ?? '',
                 'account'    => $item['friend']['account'] ?? '',
                 'user_code'  => $item['friend']['user_code'] ?? '',
+                'user_type'  => $item['friend']['user_type'] ?? 0,
                 'remark'     => $item['remark'],
                 'created_at' => $item['created_at'],
             ];

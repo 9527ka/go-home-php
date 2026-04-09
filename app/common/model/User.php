@@ -116,4 +116,12 @@ class User extends Model
     {
         return $this->status === 3;
     }
+
+    /**
+     * 是否官方客服
+     */
+    public function isOfficialService(): bool
+    {
+        return $this->user_type === 1;
+    }
 }

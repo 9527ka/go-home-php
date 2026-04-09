@@ -22,7 +22,7 @@ class PrivateMessage extends Model
     public function fromUser()
     {
         return $this->belongsTo(User::class, 'from_id')
-            ->field('id,nickname,avatar,user_code');
+            ->field('id,nickname,avatar,user_code,user_type');
     }
 
     /**

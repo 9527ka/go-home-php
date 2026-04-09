@@ -24,6 +24,7 @@ class UserManage
         $limit = (int)$request->get('limit', 20);
         $keyword = $request->get('keyword', '');
         $status = $request->get('status', '');
+        $userType = $request->get('user_type', '');
 
         $query = User::with(['wallet'])->order('id', 'desc');
 
@@ -33,6 +34,10 @@ class UserManage
 
         if ($status !== '') {
             $query->where('status', (int)$status);
+        }
+
+        if ($userType !== '') {
+            $query->where('user_type', (int)$userType);
         }
 
         $total = (clone $query)->count();
@@ -131,5 +136,29 @@ class UserManage
         }
 
         return json(['code' => 0, 'msg' => '更新成功']);
+    }
+
+    /**
+     * 设置/取消官方客服身份
+     * POST /admin/user/type
+     */
+    public function updateUserType(Request $request): Response
+    {
+        $id = (int)$request->post('id');
+        $userType = (int)$request->post('user_type', 0);
+
+        if (!in_array($userType, [0, 1])) {
+            return json(['code' => 400, 'msg' => '无效的用户类型']);
+        }
+
+        $user = User::find($id);
+        if (!$user) {
+            return json(['code' => ErrorCode::AUTH_ACCOUNT_NOT_FOUND, 'msg' => '用户不存在']);
+        }
+
+        $user->user_type = $userType;
+        $user->save();
+
+        return json(['code' => 0, 'msg' => $userType === 1 ? '已设为官方客服' : '已取消客服身份']);
     }
 }

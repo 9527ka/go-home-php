@@ -5,7 +5,10 @@ namespace app\common\service;
 
 use app\common\enum\ErrorCode;
 use app\common\exception\BusinessException;
+use app\common\model\Friendship;
+use app\common\model\PrivateMessage;
 use app\common\model\User;
+use app\common\model\WalletSetting;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use think\facade\Cache;
@@ -72,6 +75,9 @@ class AuthService
         $user->save();
 
         Log::info("User registered: id={$user->id}, account={$account}");
+
+        // 添加默认客服好友
+        self::addDefaultServiceFriend($user->id);
 
         return $user;
     }
@@ -236,6 +242,9 @@ class AuthService
             $user->save();
 
             Log::info("Apple signin (new): user_id={$user->id}");
+
+            // 添加默认客服好友
+            self::addDefaultServiceFriend($user->id);
         }
 
         $token = self::generateToken($user->id);
@@ -308,6 +317,9 @@ class AuthService
         $user->save();
 
         Log::info("Guest quick login: user_id={$user->id}, account={$guestId}");
+
+        // 添加默认客服好友
+        self::addDefaultServiceFriend($user->id);
 
         $token = self::generateToken($user->id);
 
@@ -398,6 +410,70 @@ class AuthService
         Log::info("User changed password: user_id={$userId}");
 
         return $user;
+    }
+
+    /**
+     * 为新用户分配客服好友 + 发送欢迎消息
+     * 按容量自动分配：找第一个未满的客服账号
+     */
+    public static function addDefaultServiceFriend(int $userId): void
+    {
+        try {
+            $capacity = (int)WalletSetting::getValue('service_users_per_account', '1000');
+            if ($capacity <= 0) $capacity = 1000;
+
+            // 查所有活跃客服，按 ID 顺序
+            $serviceUsers = User::where('user_type', 1)
+                ->where('status', 1)
+                ->order('id', 'asc')
+                ->select();
+
+            if ($serviceUsers->isEmpty()) {
+                return;
+            }
+
+            // 找第一个未满的客服
+            $targetService = null;
+            foreach ($serviceUsers as $su) {
+                if ((int)$su->id === $userId) continue;
+                $count = Friendship::where('user_id', (int)$su->id)->count();
+                if ($count < $capacity) {
+                    $targetService = $su;
+                    break;
+                }
+            }
+
+            // 全满则分配给最后一个（软上限）
+            if (!$targetService) {
+                $targetService = $serviceUsers->last();
+                if ((int)$targetService->id === $userId) return;
+            }
+
+            $serviceId = (int)$targetService->id;
+            $now = date('Y-m-d H:i:s');
+
+            // 创建双向好友关系（防重复）
+            if (!Friendship::where('user_id', $userId)->where('friend_id', $serviceId)->find()) {
+                Friendship::create(['user_id' => $userId, 'friend_id' => $serviceId, 'created_at' => $now]);
+            }
+            if (!Friendship::where('user_id', $serviceId)->where('friend_id', $userId)->find()) {
+                Friendship::create(['user_id' => $serviceId, 'friend_id' => $userId, 'created_at' => $now]);
+            }
+
+            // 客服发送欢迎消息
+            PrivateMessage::create([
+                'from_id'    => $serviceId,
+                'to_id'      => $userId,
+                'content'    => '欢迎使用回家了么！有任何问题可以随时联系客服。',
+                'msg_type'   => 'text',
+                'is_read'    => 0,
+                'created_at' => $now,
+            ]);
+
+            Log::info("Assigned service account#{$serviceId} to user#{$userId}");
+        } catch (\Throwable $e) {
+            Log::warning("Add default service friend failed for user#{$userId}: " . $e->getMessage());
+        }
     }
 
     /**
