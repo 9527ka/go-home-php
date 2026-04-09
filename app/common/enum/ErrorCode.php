@@ -73,6 +73,8 @@ class ErrorCode
     const RED_PACKET_CLAIMED       = 3511;
     const RED_PACKET_EMPTY         = 3512;
     const BOOST_POST_INACTIVE      = 3515;
+    const IAP_VERIFY_FAILED        = 3516;
+    const IAP_DUPLICATE_TRANSACTION = 3517;
 
     // ---- 评论相关 ----
     const COMMENT_NOT_FOUND        = 3040;
@@ -156,6 +158,8 @@ class ErrorCode
         self::RED_PACKET_CLAIMED       => '您已领取过该红包',
         self::RED_PACKET_EMPTY         => '红包已被领完',
         self::BOOST_POST_INACTIVE      => '启事状态异常，无法置顶',
+        self::IAP_VERIFY_FAILED        => 'IAP收据验证失败',
+        self::IAP_DUPLICATE_TRANSACTION => '该交易已处理',
         self::SIGN_DISABLED            => '签到功能未开启',
         self::SIGN_ALREADY_TODAY       => '今日已签到',
         self::TASK_NOT_FOUND           => '任务不存在',

@@ -3,14 +3,17 @@ declare(strict_types=1);
 
 namespace app\api\controller;
 
+use app\common\config\IapProducts;
 use app\common\enum\ErrorCode;
 use app\common\model\PostBoost;
 use app\common\model\RechargeOrder;
 use app\common\model\WalletSetting;
 use app\common\model\WalletTransaction;
 use app\common\model\WithdrawalOrder;
+use app\common\service\AppleIapService;
 use app\common\service\UploadService;
 use app\common\service\WalletService;
+use think\facade\Db;
 use think\Response;
 
 class Wallet extends BaseApi
@@ -224,6 +227,82 @@ class Wallet extends BaseApi
             'expire_at' => $boost->expire_at,
             'total_cost' => (float)$boost->total_cost,
         ], '置顶成功');
+    }
+
+    /**
+     * Apple IAP 充值
+     * POST /api/wallet/iap-recharge  {receipt_data, product_id}
+     */
+    public function iapRecharge(): Response
+    {
+        WalletService::checkEnabled();
+
+        $receiptData = trim((string)$this->request->post('receipt_data', ''));
+        $productId   = trim((string)$this->request->post('product_id', ''));
+
+        if (empty($receiptData) || empty($productId)) {
+            return $this->error(ErrorCode::PARAM_MISSING, '缺少收据或产品ID');
+        }
+
+        // 收据大小限制（防滥用）
+        if (strlen($receiptData) > 50000) {
+            return $this->error(ErrorCode::PARAM_FORMAT_ERROR, '收据数据过大');
+        }
+
+        if (!IapProducts::isValid($productId)) {
+            return $this->error(ErrorCode::PARAM_FORMAT_ERROR, '无效的产品ID');
+        }
+
+        // 验证 Apple 收据
+        $verified = AppleIapService::verify($receiptData, $productId);
+        $transactionId = $verified['original_transaction_id'];
+        $coins         = $verified['coins'];
+
+        $userId = $this->getUserId();
+
+        // 幂等检查 + 创建订单在同一事务内，避免竞态
+        try {
+            $result = Db::transaction(function () use ($userId, $coins, $productId, $transactionId, $receiptData) {
+                // 事务内幂等检查（防并发）
+                $existing = RechargeOrder::where('iap_transaction_id', $transactionId)->find();
+                if ($existing && $existing->status === RechargeOrder::STATUS_APPROVED) {
+                    return ['existing' => true, 'order' => $existing, 'coins' => (int)$existing->amount];
+                }
+
+                $order = new RechargeOrder();
+                $order->user_id            = $userId;
+                $order->amount             = $coins;
+                $order->payment_type       = 1; // Apple IAP
+                $order->iap_product_id     = $productId;
+                $order->iap_transaction_id = $transactionId;
+                $order->iap_receipt        = $receiptData;
+                $order->status             = RechargeOrder::STATUS_APPROVED;
+                $order->save();
+
+                // 直接调用 credit 避免嵌套事务
+                WalletService::iapCredit($userId, (float)$coins, $order->id);
+
+                return ['existing' => false, 'order' => $order, 'coins' => $coins];
+            });
+        } catch (\Throwable $e) {
+            // UNIQUE 约束冲突兜底：并发请求可能同时通过幂等检查
+            if (str_contains($e->getMessage(), 'Duplicate') || str_contains($e->getMessage(), 'uk_iap_transaction')) {
+                $existing = RechargeOrder::where('iap_transaction_id', $transactionId)->find();
+                if ($existing) {
+                    return $this->success([
+                        'coins'    => (int)$existing->amount,
+                        'order_id' => $existing->id,
+                    ], '充值已到账');
+                }
+            }
+            throw $e;
+        }
+
+        $msg = $result['existing'] ? '充值已到账' : '充值成功';
+        return $this->success([
+            'coins'    => $result['coins'],
+            'order_id' => $result['order']->id,
+        ], $msg);
     }
 
     /**

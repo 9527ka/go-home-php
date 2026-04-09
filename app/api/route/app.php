@@ -98,6 +98,7 @@ Route::group('', function () {
     Route::get('wallet/info', 'Wallet/info');
     Route::get('wallet/transactions', 'Wallet/transactions');
     Route::post('wallet/recharge', 'Wallet/recharge');
+    Route::post('wallet/iap-recharge', 'Wallet/iapRecharge');
     Route::get('wallet/recharge/list', 'Wallet/rechargeList');
     Route::post('wallet/withdraw', 'Wallet/withdraw');
     Route::get('wallet/withdraw/list', 'Wallet/withdrawList');

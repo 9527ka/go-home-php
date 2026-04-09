@@ -181,13 +181,21 @@ class WalletService
     // ========== 充值 ==========
 
     /**
-     * 管理员审核通过充值
+     * 管理员审核通过充值（自带事务）
      */
     public static function recharge(int $userId, float $amount, int $orderId): void
     {
         Db::transaction(function () use ($userId, $amount, $orderId) {
             self::credit($userId, $amount, WalletTransactionType::RECHARGE, $orderId, '充值');
         });
+    }
+
+    /**
+     * IAP 充值到账（无事务包裹，供调用方在外层事务中使用）
+     */
+    public static function iapCredit(int $userId, float $amount, int $orderId): void
+    {
+        self::credit($userId, $amount, WalletTransactionType::RECHARGE, $orderId, 'Apple IAP充值');
     }
 
     // ========== 提现 ==========
