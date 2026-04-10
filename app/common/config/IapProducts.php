@@ -12,11 +12,12 @@ namespace app\common\config;
 class IapProducts
 {
     const PRODUCTS = [
-        'com.gohome.coins.100'  => 100,
-        'com.gohome.coins.500'  => 500,
-        'com.gohome.coins.1000' => 1000,
-        'com.gohome.coins.2000' => 2000,
-        'com.gohome.coins.5000' => 5000,
+        'com.gohome.coin100'   => 100,
+        'com.gohome.coin500'   => 500,
+        'com.gohome.coin1000'  => 1000,
+        'com.gohome.coin2000'  => 2000,
+        'com.gohome.coin5000'  => 5000,
+        'com.gohome.coin10000' => 10000,
     ];
 
     /**
