@@ -86,6 +86,7 @@ Route::group('api', function () {
         Route::get('pm/history', 'api/Pm/history');
         Route::get('pm/conversations', 'api/Pm/conversations');
         Route::post('pm/read', 'api/Pm/read');
+        Route::post('pm/mute', 'api/Pm/mute');
 
         // 点赞
         Route::post('like/toggle', 'api/Like/toggle');

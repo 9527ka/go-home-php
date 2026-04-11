@@ -167,4 +167,41 @@ class Pm extends BaseApi
 
         return $this->success(null, '已标记已读');
     }
+
+    /**
+     * 设置会话免打扰（服务端据此跳过 APNs 推送）
+     * POST /api/pm/mute
+     *
+     * @body target_id   int    对方用户ID或群组ID
+     * @body target_type string private / group
+     * @body muted       bool
+     */
+    public function mute(): Response
+    {
+        $userId     = $this->getUserId();
+        $targetId   = (int)$this->request->post('target_id', 0);
+        $targetType = $this->request->post('target_type', 'private');
+        $muted      = (bool)$this->request->post('muted', false);
+
+        if ($targetId <= 0 || !in_array($targetType, ['private', 'group'], true)) {
+            return $this->error(ErrorCode::PARAM_MISSING);
+        }
+
+        if ($muted) {
+            Db::table('conversation_mutes')->replace(true)->insert([
+                'user_id'     => $userId,
+                'target_id'   => $targetId,
+                'target_type' => $targetType,
+                'created_at'  => date('Y-m-d H:i:s'),
+            ]);
+        } else {
+            Db::table('conversation_mutes')
+                ->where('user_id', $userId)
+                ->where('target_id', $targetId)
+                ->where('target_type', $targetType)
+                ->delete();
+        }
+
+        return $this->success();
+    }
 }

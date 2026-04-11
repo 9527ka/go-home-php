@@ -559,16 +559,23 @@ function handlePrivateMessage(TcpConnection $connection, array $msg): void
     // 也发回给发送者（确认消息已发送，并用于会话列表更新）
     sendToUser($connection->userId, $pushData);
 
-    // 接收者离线 → APNs 推送
+    // 接收者离线 → APNs 推送（免打扰则跳过）
     if (!$delivered) {
         try {
-            $senderName = $connection->userInfo['nickname'] ?? '';
-            $rawContent = html_entity_decode($content, ENT_QUOTES, 'UTF-8');
-            $preview = ($msgType === 'text') ? mb_substr($rawContent, 0, 50) : '[' . $msgType . ']';
-            \app\common\service\ApnsPushService::sendToUser($toId, $senderName, $preview, [
-                'type' => 'private_message',
-                'from_id' => $connection->userId,
-            ]);
+            $isMuted = \think\facade\Db::table('conversation_mutes')
+                ->where('user_id', $toId)
+                ->where('target_id', $connection->userId)
+                ->where('target_type', 'private')
+                ->find();
+            if (!$isMuted) {
+                $senderName = $connection->userInfo['nickname'] ?? '';
+                $rawContent = html_entity_decode($content, ENT_QUOTES, 'UTF-8');
+                $preview = ($msgType === 'text') ? mb_substr($rawContent, 0, 50) : '[' . $msgType . ']';
+                \app\common\service\ApnsPushService::sendToUser($toId, $senderName, $preview, [
+                    'type' => 'private_message',
+                    'from_id' => $connection->userId,
+                ]);
+            }
         } catch (\Throwable $e) {
             echo "[APNs] PM push failed for userId={$toId}: {$e->getMessage()}\n";
         }
@@ -712,19 +719,28 @@ function handleGroupMessage(TcpConnection $connection, array $msg): void
         }
     }
 
-    // 离线成员 APNs 批量推送
+    // 离线成员 APNs 批量推送（排除免打扰成员）
     if (!empty($offlineMembers)) {
         try {
-            $senderName = $connection->userInfo['nickname'] ?? '';
-            $groupName = $group['name'] ?? '';
-            $rawContent = html_entity_decode($content, ENT_QUOTES, 'UTF-8');
-            $preview = ($msgType === 'text') ? mb_substr($rawContent, 0, 50) : '[' . $msgType . ']';
-            $title = $groupName ?: $senderName;
-            $body = $senderName . ': ' . $preview;
-            \app\common\service\ApnsPushService::sendToUsers($offlineMembers, $title, $body, [
-                'type' => 'group_message',
-                'group_id' => $groupId,
-            ]);
+            $mutedUserIds = \think\facade\Db::table('conversation_mutes')
+                ->whereIn('user_id', $offlineMembers)
+                ->where('target_id', $groupId)
+                ->where('target_type', 'group')
+                ->column('user_id');
+            $pushMembers = array_diff($offlineMembers, $mutedUserIds);
+
+            if (!empty($pushMembers)) {
+                $senderName = $connection->userInfo['nickname'] ?? '';
+                $groupName = $group['name'] ?? '';
+                $rawContent = html_entity_decode($content, ENT_QUOTES, 'UTF-8');
+                $preview = ($msgType === 'text') ? mb_substr($rawContent, 0, 50) : '[' . $msgType . ']';
+                $title = $groupName ?: $senderName;
+                $body = $senderName . ': ' . $preview;
+                \app\common\service\ApnsPushService::sendToUsers($pushMembers, $title, $body, [
+                    'type' => 'group_message',
+                    'group_id' => $groupId,
+                ]);
+            }
         } catch (\Throwable $e) {
             echo "[APNs] Group push failed for group#{$groupId}: {$e->getMessage()}\n";
         }
