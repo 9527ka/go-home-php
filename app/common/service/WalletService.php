@@ -6,12 +6,14 @@ namespace app\common\service;
 use app\common\enum\ErrorCode;
 use app\common\enum\WalletTransactionType;
 use app\common\exception\BusinessException;
+use app\common\model\Clue;
 use app\common\model\Donation;
 use app\common\model\Post;
 use app\common\model\PostBoost;
 use app\common\model\RechargeOrder;
 use app\common\model\RedPacket;
 use app\common\model\RedPacketClaim;
+use app\common\model\RewardClaim;
 use app\common\model\Wallet;
 use app\common\model\WalletSetting;
 use app\common\model\WalletTransaction;
@@ -593,6 +595,216 @@ class WalletService
 
             return $claim;
         });
+    }
+
+    // ========== 悬赏 ==========
+
+    /**
+     * 创建启事时冻结悬赏金额
+     * 从发布者余额冻结到 frozen_balance，不直接扣减
+     */
+    public static function freezeReward(int $userId, int $postId, float $amount): void
+    {
+        self::checkEnabled();
+
+        $minReward = (float)WalletSetting::getValue('min_reward', '100');
+        if ($amount < $minReward) {
+            throw new BusinessException(ErrorCode::WALLET_AMOUNT_TOO_SMALL, "悬赏最低 {$minReward} 爱心币");
+        }
+
+        $wallet = self::getOrCreateWallet($userId);
+        if (!$wallet->isNormal()) {
+            throw new BusinessException(ErrorCode::WALLET_FROZEN);
+        }
+
+        // 原子冻结
+        $affected = Db::table('wallets')
+            ->where('user_id', $userId)
+            ->where('balance', '>=', $amount)
+            ->update([
+                'balance'        => Db::raw("balance - {$amount}"),
+                'frozen_balance' => Db::raw("frozen_balance + {$amount}"),
+                'updated_at'     => date('Y-m-d H:i:s'),
+            ]);
+
+        if ($affected === 0) {
+            throw new BusinessException(ErrorCode::WALLET_INSUFFICIENT);
+        }
+
+        // 记录冻结流水
+        $balanceAfter = (float)Db::table('wallets')->where('user_id', $userId)->value('balance');
+        $balanceBefore = bcadd((string)$balanceAfter, (string)$amount, 2);
+
+        WalletTransaction::create([
+            'user_id'        => $userId,
+            'type'           => WalletTransactionType::BOUNTY_FREEZE,
+            'amount'         => $amount,
+            'balance_before' => $balanceBefore,
+            'balance_after'  => $balanceAfter,
+            'related_id'     => $postId,
+            'remark'         => "悬赏冻结 启事#{$postId}",
+            'created_at'     => date('Y-m-d H:i:s'),
+        ]);
+    }
+
+    /**
+     * 发放悬赏给线索提供者（可分次发放）
+     */
+    public static function payReward(int $fromUserId, int $postId, int $clueId, float $amount, string $message = ''): RewardClaim
+    {
+        self::checkEnabled();
+
+        $post = Post::find($postId);
+        if (!$post) {
+            throw new BusinessException(ErrorCode::POST_NOT_FOUND);
+        }
+
+        if ($post->user_id !== $fromUserId) {
+            throw new BusinessException(ErrorCode::POST_NO_PERMISSION, '只有发布者可以发放悬赏');
+        }
+
+        $clue = Clue::where('id', $clueId)->where('post_id', $postId)->where('status', 1)->find();
+        if (!$clue) {
+            throw new BusinessException(ErrorCode::BOUNTY_CLUE_NOT_FOUND);
+        }
+
+        if ($clue->user_id === $fromUserId) {
+            throw new BusinessException(ErrorCode::BOUNTY_SELF_CLAIM);
+        }
+
+        $remaining = bcsub((string)$post->reward_amount, (string)$post->reward_paid, 2);
+        if ($amount > (float)$remaining || $amount <= 0) {
+            throw new BusinessException(ErrorCode::BOUNTY_EXCEED, "剩余可发放 {$remaining} 爱心币");
+        }
+
+        return Db::transaction(function () use ($fromUserId, $post, $clue, $amount, $message) {
+            // 从 frozen_balance 扣减
+            $affected = Db::table('wallets')
+                ->where('user_id', $fromUserId)
+                ->where('frozen_balance', '>=', $amount)
+                ->update([
+                    'frozen_balance' => Db::raw("frozen_balance - {$amount}"),
+                    'updated_at'     => date('Y-m-d H:i:s'),
+                ]);
+
+            if ($affected === 0) {
+                throw new BusinessException(ErrorCode::WALLET_INSUFFICIENT, '冻结余额不足');
+            }
+
+            // 记录发放者支出流水（余额不变，冻结减少）
+            $wallet = Wallet::where('user_id', $fromUserId)->find();
+            WalletTransaction::create([
+                'user_id'        => $fromUserId,
+                'type'           => WalletTransactionType::BOUNTY_PAY,
+                'amount'         => $amount,
+                'balance_before' => (string)$wallet->balance,
+                'balance_after'  => (string)$wallet->balance,
+                'related_id'     => null,
+                'remark'         => "悬赏发放 线索#{$clue->id}",
+                'created_at'     => date('Y-m-d H:i:s'),
+            ]);
+
+            // 给线索提供者加余额
+            self::credit($clue->user_id, $amount, WalletTransactionType::BOUNTY_INCOME, null, "收到悬赏 启事#{$post->id}");
+
+            // 创建发放记录
+            $claim = RewardClaim::create([
+                'post_id'      => $post->id,
+                'clue_id'      => $clue->id,
+                'from_user_id' => $fromUserId,
+                'to_user_id'   => $clue->user_id,
+                'amount'       => $amount,
+                'message'      => $message,
+                'created_at'   => date('Y-m-d H:i:s'),
+            ]);
+
+            // 更新流水关联ID
+            Db::table('wallet_transactions')
+                ->where('user_id', $fromUserId)
+                ->where('type', WalletTransactionType::BOUNTY_PAY)
+                ->where('related_id', null)
+                ->order('id', 'desc')
+                ->limit(1)
+                ->update(['related_id' => $claim->id]);
+
+            Db::table('wallet_transactions')
+                ->where('user_id', $clue->user_id)
+                ->where('type', WalletTransactionType::BOUNTY_INCOME)
+                ->where('related_id', null)
+                ->order('id', 'desc')
+                ->limit(1)
+                ->update(['related_id' => $claim->id]);
+
+            // 更新启事已发放金额
+            Db::table('posts')
+                ->where('id', $post->id)
+                ->update([
+                    'reward_paid' => Db::raw("reward_paid + {$amount}"),
+                    'updated_at'  => date('Y-m-d H:i:s'),
+                ]);
+
+            // 通知线索提供者
+            NotifyService::send(
+                $clue->user_id,
+                5,
+                '收到悬赏',
+                "您为启事「{$post->name}」提供的线索获得了 {$amount} 爱心币悬赏",
+                $post->id
+            );
+
+            return $claim;
+        });
+    }
+
+    /**
+     * 退还悬赏（帖子关闭/过期时退还未发放部分）
+     */
+    public static function refundReward(int $postId): void
+    {
+        $post = Post::find($postId);
+        if (!$post) return;
+
+        $remaining = bcsub((string)$post->reward_amount, (string)$post->reward_paid, 2);
+        if ((float)$remaining <= 0) return;
+
+        try {
+            Db::transaction(function () use ($post, $remaining) {
+                $refundAmount = (float)$remaining;
+                $userId = $post->user_id;
+
+                // 从 frozen_balance 退回到 balance
+                Db::table('wallets')
+                    ->where('user_id', $userId)
+                    ->update([
+                        'balance'        => Db::raw("balance + {$refundAmount}"),
+                        'frozen_balance' => Db::raw("frozen_balance - {$refundAmount}"),
+                        'updated_at'     => date('Y-m-d H:i:s'),
+                    ]);
+
+                // 记录退还流水
+                $wallet = Wallet::where('user_id', $userId)->find();
+                WalletTransaction::create([
+                    'user_id'        => $userId,
+                    'type'           => WalletTransactionType::BOUNTY_REFUND,
+                    'amount'         => $refundAmount,
+                    'balance_before' => bcsub((string)$wallet->balance, (string)$refundAmount, 2),
+                    'balance_after'  => (string)$wallet->balance,
+                    'related_id'     => $post->id,
+                    'remark'         => "悬赏退还 启事#{$post->id}",
+                    'created_at'     => date('Y-m-d H:i:s'),
+                ]);
+
+                // 更新启事 reward_paid = reward_amount（标记为已全部处理）
+                Db::table('posts')
+                    ->where('id', $post->id)
+                    ->update([
+                        'reward_paid' => $post->reward_amount,
+                        'updated_at'  => date('Y-m-d H:i:s'),
+                    ]);
+            });
+        } catch (\Exception $e) {
+            Log::error("Reward refund failed post#{$postId}: " . $e->getMessage());
+        }
     }
 
     /**

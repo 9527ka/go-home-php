@@ -110,6 +110,7 @@ Route::group('', function () {
     Route::post('wallet/donate', 'Wallet/donate');
     Route::post('wallet/boost', 'Wallet/boost');
     Route::get('wallet/boost/active', 'Wallet/boostActive');
+    Route::post('wallet/reward/pay', 'Wallet/rewardPay');
 
     // 红包
     Route::post('red-packet/send', 'RedPacket/send');

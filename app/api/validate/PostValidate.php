@@ -20,6 +20,7 @@ class PostValidate extends Validate
         'lost_address'  => 'max:255',
         'images'        => 'array|max:9',
         'visibility'    => 'in:1,2',
+        'reward_amount' => 'float|egt:0|elt:100000',
     ];
 
     protected $message = [
@@ -41,7 +42,7 @@ class PostValidate extends Validate
             'category', 'name', 'species',
             'appearance', 'description', 'lost_at',
             'lost_province', 'lost_city', 'lost_district', 'lost_address',
-            'images', 'visibility',
+            'images', 'visibility', 'reward_amount',
         ],
         'update' => [
             'name', 'species',

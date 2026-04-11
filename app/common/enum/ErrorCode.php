@@ -84,6 +84,11 @@ class ErrorCode
     // ---- 关注相关 ----
     const FOLLOW_SELF              = 3050;
 
+    // ---- 悬赏相关 ----
+    const BOUNTY_SELF_CLAIM        = 3530;
+    const BOUNTY_EXCEED            = 3531;
+    const BOUNTY_CLUE_NOT_FOUND    = 3532;
+
     // ---- 签到/任务相关 ----
     const SIGN_DISABLED            = 3520;
     const SIGN_ALREADY_TODAY       = 3521;
@@ -158,6 +163,9 @@ class ErrorCode
         self::RED_PACKET_CLAIMED       => '您已领取过该红包',
         self::RED_PACKET_EMPTY         => '红包已被领完',
         self::BOOST_POST_INACTIVE      => '启事状态异常，无法置顶',
+        self::BOUNTY_SELF_CLAIM        => '不能领取自己的悬赏',
+        self::BOUNTY_EXCEED            => '发放金额超过剩余悬赏',
+        self::BOUNTY_CLUE_NOT_FOUND    => '线索不存在',
         self::IAP_VERIFY_FAILED        => 'IAP收据验证失败',
         self::IAP_DUPLICATE_TRANSACTION => '该交易已处理',
         self::SIGN_DISABLED            => '签到功能未开启',

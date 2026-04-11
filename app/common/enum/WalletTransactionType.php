@@ -20,6 +20,10 @@ class WalletTransactionType
     const SIGN_REWARD       = 10; // 签到奖励
     const TASK_REWARD       = 11; // 任务奖励
     const REWARD_RELEASE    = 12; // 奖励释放(冻结→可用)
+    const BOUNTY_FREEZE     = 13; // 悬赏冻结
+    const BOUNTY_PAY        = 14; // 悬赏发放(支出)
+    const BOUNTY_INCOME     = 15; // 悬赏收入
+    const BOUNTY_REFUND     = 16; // 悬赏退还
 
     const NAMES = [
         self::RECHARGE          => '充值',
@@ -34,6 +38,10 @@ class WalletTransactionType
         self::SIGN_REWARD       => '签到奖励',
         self::TASK_REWARD       => '任务奖励',
         self::REWARD_RELEASE    => '奖励释放',
+        self::BOUNTY_FREEZE     => '悬赏冻结',
+        self::BOUNTY_PAY        => '悬赏发放',
+        self::BOUNTY_INCOME     => '悬赏收入',
+        self::BOUNTY_REFUND     => '悬赏退还',
     ];
 
     /**
@@ -46,6 +54,8 @@ class WalletTransactionType
         self::RED_PACKET_REFUND,
         self::WITHDRAWAL_REFUND,
         self::REWARD_RELEASE,
+        self::BOUNTY_INCOME,
+        self::BOUNTY_REFUND,
     ];
 
     /**

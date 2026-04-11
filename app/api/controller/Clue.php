@@ -40,6 +40,16 @@ class Clue extends BaseApi
             throw new BusinessException(ErrorCode::POST_NOT_FOUND);
         }
 
+        // 悬赏帖线索质量门槛：内容≥20字或附带图片
+        if ((float)$post->reward_amount > 0) {
+            $content = trim($params['content'] ?? '');
+            $images  = $params['images'] ?? [];
+            $hasImages = is_array($images) && count($images) > 0;
+            if (mb_strlen($content) < 20 && !$hasImages) {
+                throw new BusinessException(ErrorCode::PARAM_VALIDATE_FAIL, '悬赏启事的线索需至少20字或附带图片');
+            }
+        }
+
         Db::startTrans();
         try {
             $clue = new ClueModel();

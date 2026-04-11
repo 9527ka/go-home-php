@@ -14,6 +14,7 @@ use app\common\model\Like;
 use app\common\model\Favorite;
 use app\common\model\Donation;
 use app\common\model\PostBoost;
+use app\common\model\RewardClaim;
 use think\facade\Db;
 use think\facade\Log;
 
@@ -84,8 +85,18 @@ class PostService
             // 可见性：1=公开 2=仅自己可见
             $post->visibility = in_array((int)($data['visibility'] ?? 1), [1, 2]) ? (int)$data['visibility'] : 1;
 
+            $post->reward_amount = 0;
+            $post->reward_paid   = 0;
             $post->status = PostStatus::PENDING; // ⚠️ 所有发布默认待审核
             $post->save();
+
+            // 悬赏冻结（审核通过前即冻结，防止发布后余额不足）
+            $rewardAmount = (float)($data['reward_amount'] ?? 0);
+            if ($rewardAmount > 0) {
+                WalletService::freezeReward($userId, $post->id, $rewardAmount);
+                $post->reward_amount = $rewardAmount;
+                $post->save();
+            }
 
             // 保存图片
             if (!empty($validImages)) {
@@ -257,6 +268,21 @@ class PostService
                 ->count() > 0;
         }
 
+        // 悬赏发放记录
+        $result['reward_claims'] = [];
+        if ((float)$post->reward_amount > 0) {
+            try {
+                $result['reward_claims'] = RewardClaim::with(['toUser'])
+                    ->where('post_id', $id)
+                    ->order('created_at', 'desc')
+                    ->limit(50)
+                    ->select()
+                    ->toArray();
+            } catch (\Throwable $e) {
+                Log::error('Load reward_claims failed: ' . $e->getMessage());
+            }
+        }
+
         // 捐赠记录（最近20条）
         $result['donations'] = [];
         $result['boosts']    = [];
@@ -344,6 +370,13 @@ class PostService
 
         $post->status = $newStatus;
         $post->save();
+
+        // 悬赏退还：帖子关闭或已找到时，退还未发放的悬赏金额
+        if (in_array($newStatus, [PostStatus::FOUND, PostStatus::CLOSED])) {
+            if ((float)$post->reward_amount > 0) {
+                WalletService::refundReward($postId);
+            }
+        }
 
         Log::info("Post status updated: id={$postId}, user={$userId}, newStatus={$newStatus}");
 

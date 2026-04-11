@@ -306,6 +306,29 @@ class Wallet extends BaseApi
     }
 
     /**
+     * 发放悬赏
+     * POST /api/wallet/reward/pay  {post_id, clue_id, amount, message?}
+     */
+    public function rewardPay(): Response
+    {
+        $postId  = (int)$this->request->post('post_id', 0);
+        $clueId  = (int)$this->request->post('clue_id', 0);
+        $amount  = (float)$this->request->post('amount', 0);
+        $message = trim((string)$this->request->post('message', ''));
+
+        if ($postId <= 0 || $clueId <= 0 || $amount <= 0) {
+            return $this->error(ErrorCode::PARAM_MISSING);
+        }
+
+        $claim = WalletService::payReward($this->getUserId(), $postId, $clueId, $amount, $message);
+
+        return $this->success([
+            'claim_id' => $claim->id,
+            'amount'   => (float)$claim->amount,
+        ], '悬赏发放成功');
+    }
+
+    /**
      * 查询启事是否有活跃置顶
      * GET /api/wallet/boost/active?post_id=
      */
