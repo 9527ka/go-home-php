@@ -28,8 +28,13 @@ Route::group('', function () {
     Route::get('auth/profile', 'Auth/profile');
     Route::post('auth/update', 'Auth/update');
     Route::post('auth/change-account', 'Auth/changeAccount');
+    Route::post('auth/bind-apple', 'Auth/bindApple');
     Route::post('auth/change-password', 'Auth/changePassword');
     Route::post('auth/delete-account', 'Auth/deleteAccount');
+
+    // 设备推送令牌
+    Route::post('device/register-token', 'Device/registerToken');
+    Route::post('device/unregister-token', 'Device/unregisterToken');
 
     // 启事
     Route::post('post/create', 'Post/create');

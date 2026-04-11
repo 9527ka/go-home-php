@@ -94,6 +94,32 @@ class Auth extends BaseApi
     }
 
     /**
+     * 绑定 Apple ID（游客账号升级为 Apple 登录）
+     * POST /api/auth/bind-apple
+     *
+     * @body identity_token  string Apple 返回的 identityToken
+     * @body user_identifier string Apple 用户唯一标识
+     * @body full_name       string 用户名字（可选）
+     * @body email           string 用户邮箱（可选）
+     */
+    public function bindApple(): Response
+    {
+        $userId = $this->getUserId();
+        $identityToken = $this->request->post('identity_token', '');
+        $userIdentifier = $this->request->post('user_identifier', '');
+        $fullName = $this->request->post('full_name');
+        $email = $this->request->post('email');
+
+        if (empty($identityToken) || empty($userIdentifier)) {
+            return $this->error(ErrorCode::PARAM_MISSING, '缺少 Apple 授权信息');
+        }
+
+        $user = AuthService::bindApple($userId, $identityToken, $userIdentifier, $fullName, $email);
+
+        return $this->success($user->hidden(['password', 'deleted_at']), 'Apple ID 绑定成功');
+    }
+
+    /**
      * 修改账号（手机号/邮箱）
      * POST /api/auth/change-account
      *

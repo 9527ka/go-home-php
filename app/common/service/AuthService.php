@@ -336,6 +336,55 @@ class AuthService
     }
 
     /**
+     * 绑定 Apple ID（游客用户升级为 Apple 登录用户）
+     */
+    public static function bindApple(
+        int $userId,
+        string $identityToken,
+        string $userIdentifier,
+        ?string $fullName = null,
+        ?string $email = null
+    ): User {
+        $user = User::find($userId);
+        if (!$user) {
+            throw new BusinessException(ErrorCode::AUTH_ACCOUNT_NOT_FOUND);
+        }
+
+        // 仅游客用户可绑定
+        if ($user->auth_provider !== 3) {
+            throw new BusinessException(ErrorCode::PARAM_VALIDATE_FAIL, '仅游客账号可绑定 Apple ID');
+        }
+
+        // 验证 Apple Token
+        $applePayload = self::verifyAppleToken($identityToken);
+        $appleId = $applePayload['sub'] ?? '';
+        if (empty($appleId)) {
+            throw new BusinessException(ErrorCode::AUTH_TOKEN_INVALID, 'Apple Token 无效');
+        }
+
+        // 检查 Apple ID 是否已被其他用户绑定
+        $existingUser = User::where('apple_id', $appleId)->find();
+        if ($existingUser) {
+            throw new BusinessException(ErrorCode::AUTH_ACCOUNT_EXISTS, '该 Apple ID 已绑定其他账号');
+        }
+
+        $user->apple_id = $appleId;
+        $user->auth_provider = 2; // 升级为 Apple 用户
+        if ($email && empty($user->account)) {
+            $user->account = $email;
+            $user->account_type = 2;
+        }
+        if ($fullName && self::isAutoNickname($user->nickname)) {
+            $user->nickname = htmlspecialchars($fullName, ENT_QUOTES, 'UTF-8');
+        }
+        $user->save();
+
+        Log::info("User bind Apple: user_id={$userId}, apple_id={$appleId}");
+
+        return $user;
+    }
+
+    /**
      * 修改账号（手机号/邮箱）
      *
      * @param int    $userId
@@ -493,13 +542,26 @@ class AuthService
         return null;
     }
 
+    private const NICKNAME_PREFIXES = ['热心', '善良', '温暖', '爱心', '阳光', '希望'];
+
+    /**
+     * 判断是否为系统自动生成的昵称
+     */
+    protected static function isAutoNickname(string $nickname): bool
+    {
+        if ($nickname === '') return true;
+        foreach (self::NICKNAME_PREFIXES as $prefix) {
+            if (str_starts_with($nickname, $prefix)) return true;
+        }
+        return false;
+    }
+
     /**
      * 生成随机昵称
      */
     protected static function generateNickname(): string
     {
-        $prefix = ['热心', '善良', '温暖', '爱心', '阳光', '希望'];
         $suffix = ['市民', '伙伴', '志愿者', '用户', '朋友'];
-        return $prefix[array_rand($prefix)] . $suffix[array_rand($suffix)] . rand(1000, 9999);
+        return self::NICKNAME_PREFIXES[array_rand(self::NICKNAME_PREFIXES)] . $suffix[array_rand($suffix)] . rand(1000, 9999);
     }
 }

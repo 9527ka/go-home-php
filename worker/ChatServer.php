@@ -555,9 +555,24 @@ function handlePrivateMessage(TcpConnection $connection, array $msg): void
     }
 
     // 发送给接收者
-    sendToUser($toId, $pushData);
+    $delivered = sendToUser($toId, $pushData);
     // 也发回给发送者（确认消息已发送，并用于会话列表更新）
     sendToUser($connection->userId, $pushData);
+
+    // 接收者离线 → APNs 推送
+    if (!$delivered) {
+        try {
+            $senderName = $connection->userInfo['nickname'] ?? '';
+            $rawContent = html_entity_decode($content, ENT_QUOTES, 'UTF-8');
+            $preview = ($msgType === 'text') ? mb_substr($rawContent, 0, 50) : '[' . $msgType . ']';
+            \app\common\service\ApnsPushService::sendToUser($toId, $senderName, $preview, [
+                'type' => 'private_message',
+                'from_id' => $connection->userId,
+            ]);
+        } catch (\Throwable $e) {
+            echo "[APNs] PM push failed for userId={$toId}: {$e->getMessage()}\n";
+        }
+    }
 
     echo "[PM] {$connection->userId} => {$toId}: {$msgType}\n";
 }
@@ -684,9 +699,35 @@ function handleGroupMessage(TcpConnection $connection, array $msg): void
         $pushData['media_info'] = $mediaInfo;
     }
 
-    // 发送给群内所有在线成员
+    // 发送给群内所有在线成员，收集离线成员
+    $offlineMembers = [];
     foreach ($memberIds as $memberId) {
-        sendToUser((int)$memberId, $pushData);
+        $mid = (int)$memberId;
+        if ($mid === $connection->userId) {
+            sendToUser($mid, $pushData);
+            continue;
+        }
+        if (!sendToUser($mid, $pushData)) {
+            $offlineMembers[] = $mid;
+        }
+    }
+
+    // 离线成员 APNs 批量推送
+    if (!empty($offlineMembers)) {
+        try {
+            $senderName = $connection->userInfo['nickname'] ?? '';
+            $groupName = $group['name'] ?? '';
+            $rawContent = html_entity_decode($content, ENT_QUOTES, 'UTF-8');
+            $preview = ($msgType === 'text') ? mb_substr($rawContent, 0, 50) : '[' . $msgType . ']';
+            $title = $groupName ?: $senderName;
+            $body = $senderName . ': ' . $preview;
+            \app\common\service\ApnsPushService::sendToUsers($offlineMembers, $title, $body, [
+                'type' => 'group_message',
+                'group_id' => $groupId,
+            ]);
+        } catch (\Throwable $e) {
+            echo "[APNs] Group push failed for group#{$groupId}: {$e->getMessage()}\n";
+        }
     }
 
     echo "[Group] {$connection->userId} => group#{$groupId}: {$msgType} (members=" . count($memberIds) . ")\n";
