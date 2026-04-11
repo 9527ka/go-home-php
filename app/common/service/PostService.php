@@ -85,8 +85,6 @@ class PostService
             // 可见性：1=公开 2=仅自己可见
             $post->visibility = in_array((int)($data['visibility'] ?? 1), [1, 2]) ? (int)$data['visibility'] : 1;
 
-            $post->reward_amount = 0;
-            $post->reward_paid   = 0;
             $post->status = PostStatus::PENDING; // ⚠️ 所有发布默认待审核
             $post->save();
 
@@ -94,8 +92,10 @@ class PostService
             $rewardAmount = (float)($data['reward_amount'] ?? 0);
             if ($rewardAmount > 0) {
                 WalletService::freezeReward($userId, $post->id, $rewardAmount);
-                $post->reward_amount = $rewardAmount;
-                $post->save();
+                Db::table('posts')->where('id', $post->id)->update([
+                    'reward_amount' => $rewardAmount,
+                    'updated_at'    => date('Y-m-d H:i:s'),
+                ]);
             }
 
             // 保存图片
@@ -270,7 +270,8 @@ class PostService
 
         // 悬赏发放记录
         $result['reward_claims'] = [];
-        if ((float)$post->reward_amount > 0) {
+        $rewardAmount = (float)($result['reward_amount'] ?? 0);
+        if ($rewardAmount > 0) {
             try {
                 $result['reward_claims'] = RewardClaim::with(['toUser'])
                     ->where('post_id', $id)
@@ -373,8 +374,13 @@ class PostService
 
         // 悬赏退还：帖子关闭或已找到时，退还未发放的悬赏金额
         if (in_array($newStatus, [PostStatus::FOUND, PostStatus::CLOSED])) {
-            if ((float)$post->reward_amount > 0) {
-                WalletService::refundReward($postId);
+            try {
+                $rewardAmount = (float)Db::table('posts')->where('id', $postId)->value('reward_amount');
+                if ($rewardAmount > 0) {
+                    WalletService::refundReward($postId);
+                }
+            } catch (\Throwable $e) {
+                // reward_amount 字段不存在时静默跳过（迁移未执行）
             }
         }
 
