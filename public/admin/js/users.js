@@ -24,6 +24,17 @@ PAGE_TEMPLATES['users'] = `
           <option value="0">普通用户</option>
           <option value="1">官方客服</option>
         </select>
+        <select id="userAuthProviderFilter">
+          <option value="">全部来源</option>
+          <option value="1">账号密码</option>
+          <option value="2">Apple登录</option>
+          <option value="3">游客</option>
+        </select>
+        <select id="userPlatformFilter">
+          <option value="">全部平台</option>
+          <option value="ios">iOS</option>
+          <option value="android">Android</option>
+        </select>
         <button class="btn-filter" onclick="loadUserList(1)">搜索</button>
       </div>
       <button class="btn-filter" onclick="refreshCurrentPage()" style="background:#6b7280;" title="刷新数据">🔄 刷新</button>
@@ -31,7 +42,7 @@ PAGE_TEMPLATES['users'] = `
     <div id="userLoading" class="loading-spinner hidden"><div class="spinner"></div>加载中...</div>
     <div id="userEmpty" class="empty-state hidden"><div class="icon">👥</div><p>暂无用户数据</p></div>
     <table id="userTable" class="hidden">
-      <thead><tr><th>ID</th><th>头像</th><th>昵称</th><th>账号</th><th>角色</th><th>余额</th><th>状态</th><th>注册时间</th><th>操作</th></tr></thead>
+      <thead><tr><th>ID</th><th>头像</th><th>昵称</th><th>账号</th><th>登录来源</th><th>平台</th><th>角色</th><th>余额</th><th>状态</th><th>注册时间</th><th>操作</th></tr></thead>
       <tbody id="userTbody"></tbody>
     </table>
     <div class="pagination" id="userPagination"></div>
@@ -68,6 +79,8 @@ async function loadUserList(page) {
   const keyword = document.getElementById('userKeyword').value;
   const status = document.getElementById('userStatusFilter').value;
   const userType = document.getElementById('userTypeFilter').value;
+  const authProvider = document.getElementById('userAuthProviderFilter').value;
+  const platform = document.getElementById('userPlatformFilter').value;
   const loading = document.getElementById('userLoading');
   const empty = document.getElementById('userEmpty');
   const table = document.getElementById('userTable');
@@ -78,7 +91,7 @@ async function loadUserList(page) {
   table.classList.add('hidden');
   pagination.innerHTML = '';
 
-  const res = await apiGet('/user/list', { page, keyword, status, user_type: userType !== '' ? userType : undefined });
+  const res = await apiGet('/user/list', { page, keyword, status, user_type: userType !== '' ? userType : undefined, auth_provider: authProvider !== '' ? authProvider : undefined, platform: platform !== '' ? platform : undefined });
   loading.classList.add('hidden');
 
   if (res.code !== 0) return toast(res.msg, 'error');
@@ -92,11 +105,18 @@ async function loadUserList(page) {
   table.classList.remove('hidden');
   document.getElementById('userTbody').innerHTML = userData.list.map(u => {
     const isService = u.user_type === 1;
+    const authLabel = { 1: '账号密码', 2: 'Apple', 3: '游客' }[u.auth_provider] || '未知';
+    const authColor = { 1: '#6b7280', 2: '#000', 3: '#10b981' }[u.auth_provider] || '#999';
+    const platformLabel = u.platform ? u.platform.toUpperCase() : '-';
+    const platformIcon = u.platform === 'ios' ? '🍎' : u.platform === 'android' ? '🤖' : '';
+    const appleIdTip = u.auth_provider === 2 && u.apple_id ? ` title="${escHtml(u.apple_id)}"` : '';
     return `<tr>
       <td>#${u.id}</td>
       <td><img src="${u.avatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(u.nickname)}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;"></td>
       <td>${escHtml(u.nickname)}</td>
-      <td>${escHtml(u.account)}</td>
+      <td>${escHtml(u.account || '-')}</td>
+      <td><span${appleIdTip} style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;color:#fff;background:${authColor};cursor:${u.auth_provider === 2 ? 'help' : 'default'}">${authLabel}</span></td>
+      <td>${platformIcon} ${platformLabel}</td>
       <td>${isService ? '<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;color:#fff;background:#4A90D9;">官方客服</span>' : '<span style="color:#999;font-size:12px;">普通用户</span>'}</td>
       <td>${u.wallet ? parseFloat(u.wallet.balance).toFixed(2) : '-'}</td>
       <td><span class="status-tag ${u.status === 1 ? 'active' : u.status === 2 ? 'pending' : 'rejected'}">${u.status === 1 ? '正常' : u.status === 2 ? '禁言' : '封禁'}</span></td>

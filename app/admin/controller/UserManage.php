@@ -25,11 +25,13 @@ class UserManage
         $keyword = $request->get('keyword', '');
         $status = $request->get('status', '');
         $userType = $request->get('user_type', '');
+        $authProvider = $request->get('auth_provider', '');
+        $platform = $request->get('platform', '');
 
         $query = User::with(['wallet'])->order('id', 'desc');
 
         if ($keyword !== '') {
-            $query->where('nickname|account', 'like', "%{$keyword}%");
+            $query->where('nickname|account|apple_id', 'like', "%{$keyword}%");
         }
 
         if ($status !== '') {
@@ -40,8 +42,21 @@ class UserManage
             $query->where('user_type', (int)$userType);
         }
 
+        if ($authProvider !== '') {
+            $query->where('auth_provider', (int)$authProvider);
+        }
+
+        if ($platform !== '') {
+            $query->where('platform', $platform);
+        }
+
         $total = (clone $query)->count();
         $list = $query->page($page, $limit)->select();
+
+        // 管理后台需要展示 apple_id 等隐藏字段
+        $list = $list->each(function ($user) {
+            $user->hidden(['password', 'deleted_at']);
+        });
 
         return \json([
             'code' => 0,

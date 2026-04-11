@@ -72,6 +72,7 @@ class AuthService
         $user->password = $password; // 模型修改器自动 bcrypt
         $user->nickname = self::generateNickname();
         $user->status = 1;
+        $user->platform = self::getClientPlatform();
         $user->save();
 
         Log::info("User registered: id={$user->id}, account={$account}");
@@ -121,6 +122,7 @@ class AuthService
         // 更新登录信息
         $user->last_login_at = date('Y-m-d H:i:s');
         $user->last_login_ip = request()->ip();
+        $user->platform = self::getClientPlatform();
         $user->save();
 
         // 生成 Token
@@ -225,6 +227,7 @@ class AuthService
 
             $user->last_login_at = date('Y-m-d H:i:s');
             $user->last_login_ip = request()->ip();
+            $user->platform = self::getClientPlatform();
             $user->save();
 
             Log::info("Apple signin (existing): user_id={$user->id}");
@@ -237,6 +240,7 @@ class AuthService
             $user->account_type = $email ? 2 : 0;
             $user->nickname = !empty($fullName) ? htmlspecialchars($fullName, ENT_QUOTES, 'UTF-8') : self::generateNickname();
             $user->status = 1;
+            $user->platform = self::getClientPlatform();
             $user->last_login_at = date('Y-m-d H:i:s');
             $user->last_login_ip = request()->ip();
             $user->save();
@@ -312,6 +316,7 @@ class AuthService
         $user->auth_provider = 3; // 3=游客快速登录
         $user->nickname      = self::generateNickname();
         $user->status        = 1;
+        $user->platform      = self::getClientPlatform();
         $user->last_login_at = date('Y-m-d H:i:s');
         $user->last_login_ip = request()->ip();
         $user->save();
@@ -474,6 +479,18 @@ class AuthService
         } catch (\Throwable $e) {
             Log::warning("Add default service friend failed for user#{$userId}: " . $e->getMessage());
         }
+    }
+
+    /**
+     * 从请求头获取客户端平台 (ios/android)
+     */
+    protected static function getClientPlatform(): ?string
+    {
+        $platform = request()->header('X-Platform');
+        if ($platform && in_array(strtolower($platform), ['ios', 'android'])) {
+            return strtolower($platform);
+        }
+        return null;
     }
 
     /**
