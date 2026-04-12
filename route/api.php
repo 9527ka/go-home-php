@@ -79,6 +79,7 @@ Route::group('api', function () {
         Route::post('group/invite', 'api/Group/invite');
         Route::post('group/leave', 'api/Group/leave');
         Route::post('group/kick', 'api/Group/kick');
+        Route::post('group/set-role', 'api/Group/setRole');
         Route::post('group/disband', 'api/Group/disband');
         Route::get('group/messages', 'api/Group/messages');
 

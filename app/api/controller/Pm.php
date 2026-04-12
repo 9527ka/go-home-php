@@ -124,15 +124,29 @@ class Pm extends BaseApi
                     ->order('id', 'desc')
                     ->find();
 
+                // 取前9个成员头像和昵称（用于客户端九宫格头像）
+                $members = GroupMember::where('group_id', $gid)
+                    ->limit(9)
+                    ->with(['user' => function ($q) { $q->field('id,nickname,avatar'); }])
+                    ->select();
+                $memberAvatars = [];
+                $memberNames = [];
+                foreach ($members as $m) {
+                    $memberAvatars[] = $m->user ? $m->user->avatar : '';
+                    $memberNames[] = $m->user ? $m->user->nickname : '';
+                }
+
                 $conversations[] = [
-                    'target_id'     => $gid,
-                    'target_type'   => 'group',
-                    'name'          => $group->name,
-                    'avatar'        => $group->avatar,
-                    'last_message'  => $lastMsg ? $lastMsg->content : '',
-                    'last_msg_type' => $lastMsg ? $lastMsg->msg_type : 'text',
-                    'last_msg_time' => $lastMsg ? $lastMsg->created_at : $group->created_at,
-                    'unread_count'  => 0, // 群聊未读暂不计算
+                    'target_id'       => $gid,
+                    'target_type'     => 'group',
+                    'name'            => $group->name,
+                    'avatar'          => $group->avatar,
+                    'last_message'    => $lastMsg ? $lastMsg->content : '',
+                    'last_msg_type'   => $lastMsg ? $lastMsg->msg_type : 'text',
+                    'last_msg_time'   => $lastMsg ? $lastMsg->created_at : $group->created_at,
+                    'unread_count'    => 0,
+                    'member_avatars'  => $memberAvatars,
+                    'member_names'    => $memberNames,
                 ];
             }
         }

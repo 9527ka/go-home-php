@@ -371,6 +371,53 @@ class Group extends BaseApi
     }
 
     /**
+     * 设置群成员角色（仅群主）
+     * POST /api/group/set-role
+     *
+     * @body group_id int
+     * @body user_id  int
+     * @body role     int  0=普通成员 1=管理员
+     */
+    public function setRole(): Response
+    {
+        $userId = $this->getUserId();
+        $groupId = (int)$this->request->post('group_id', 0);
+        $targetId = (int)$this->request->post('user_id', 0);
+        $role = (int)$this->request->post('role', 0);
+
+        if ($groupId <= 0 || $targetId <= 0 || !in_array($role, [0, 1])) {
+            return $this->error(ErrorCode::PARAM_MISSING);
+        }
+
+        $group = GroupModel::find($groupId);
+        if (!$group || !$group->isActive()) {
+            return $this->error(ErrorCode::GROUP_NOT_FOUND);
+        }
+
+        // 仅群主可设置角色
+        if ((int)$group->owner_id !== $userId) {
+            return $this->error(ErrorCode::GROUP_NO_PERMISSION, '仅群主可设置管理员');
+        }
+
+        // 不能修改群主自己的角色
+        if ($targetId === $userId) {
+            return $this->error(ErrorCode::GROUP_NO_PERMISSION);
+        }
+
+        $member = GroupMember::where('group_id', $groupId)
+            ->where('user_id', $targetId)
+            ->find();
+        if (!$member) {
+            return $this->error(ErrorCode::PARAM_MISSING, '该用户不是群成员');
+        }
+
+        $member->role = $role;
+        $member->save();
+
+        return $this->success(null, '角色已更新');
+    }
+
+    /**
      * 解散群组（仅群主）
      * POST /api/group/disband
      *
