@@ -10,7 +10,6 @@ class PostValidate extends Validate
     protected $rule = [
         'category'      => 'require|in:1,2,4',
         'name'          => 'require|max:50',
-        'species'       => 'max:50',
         'appearance'    => 'require|min:10|max:2000',
         'description'   => 'max:5000',
         'lost_at'       => 'require|date',
@@ -39,13 +38,13 @@ class PostValidate extends Validate
 
     protected $scene = [
         'create' => [
-            'category', 'name', 'species',
+            'category', 'name',
             'appearance', 'description', 'lost_at',
             'lost_province', 'lost_city', 'lost_district', 'lost_address',
             'images', 'visibility', 'reward_amount',
         ],
         'update' => [
-            'name', 'species',
+            'name',
             'appearance', 'description',
             'lost_province', 'lost_city', 'lost_district', 'lost_address',
             'visibility',

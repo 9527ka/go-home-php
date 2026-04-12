@@ -17,7 +17,6 @@ class Post extends BaseApi
      * @header Authorization Bearer <token>
      * @body category      int    1=宠物 2=亲人 3=儿童 4=其它物品
      * @body name          string 标题
-     * @body species       string 宠物品种(仅宠物类)
      * @body appearance    string 体貌特征(≥10字)
      * @body description   string 补充描述
      * @body lost_at       string 走失时间 Y-m-d H:i:s

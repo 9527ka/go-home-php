@@ -67,7 +67,6 @@ class PostService
             $post->category      = $category;
             $post->lang          = $data['lang'] ?? 'zh-CN';
             $post->name          = self::sanitize($data['name'] ?? '');
-            $post->species       = self::sanitize($data['species'] ?? '');
             $post->appearance    = self::sanitize($data['appearance'] ?? '');
             $post->description   = self::sanitize($data['description'] ?? '');
             $post->lost_at       = $data['lost_at'] ?? date('Y-m-d H:i:s');
@@ -429,7 +428,7 @@ class PostService
         try {
             // 更新允许修改的字段
             $allowedFields = [
-                'name', 'species', 'appearance', 'description',
+                'name', 'appearance', 'description',
                 'lost_at', 'lost_province', 'lost_city', 'lost_district', 'lost_address',
                 'visibility',
             ];
