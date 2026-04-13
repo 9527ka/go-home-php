@@ -104,11 +104,24 @@ class MessageValidator
         ];
     }
 
-    public static function sendError(TcpConnection $connection, string $msg): void
+    /**
+     * 发送错误到客户端
+     * @param string      $msg         人类可读错误文案（兜底用）
+     * @param string|null $errorCode   机器可识别的错误码（如 NOT_FRIEND / GROUP_ALL_MUTED / GROUP_MEMBER_MUTED 等）
+     * @param string|null $clientMsgId 前端乐观消息的 client_msg_id，用于将失败状态落到具体消息气泡
+     */
+    public static function sendError(TcpConnection $connection, string $msg, ?string $errorCode = null, ?string $clientMsgId = null): void
     {
-        $connection->send(json_encode([
+        $payload = [
             'type' => 'error',
             'msg'  => $msg,
-        ], JSON_UNESCAPED_UNICODE));
+        ];
+        if ($errorCode !== null) {
+            $payload['error_code'] = $errorCode;
+        }
+        if ($clientMsgId !== null && $clientMsgId !== '') {
+            $payload['client_msg_id'] = $clientMsgId;
+        }
+        $connection->send(json_encode($payload, JSON_UNESCAPED_UNICODE));
     }
 }

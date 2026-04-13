@@ -82,6 +82,7 @@ Route::group('api', function () {
         Route::post('group/set-role', 'api/Group/setRole');
         Route::post('group/set-alias', 'api/Group/setAlias');
         Route::post('group/mute-member', 'api/Group/muteMember');
+        Route::post('group/set-all-muted', 'api/Group/setAllMuted');
         Route::post('group/disband', 'api/Group/disband');
         Route::post('group/invite-token', 'api/Group/inviteToken');
         Route::post('group/join-by-token', 'api/Group/joinByToken');

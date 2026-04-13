@@ -23,9 +23,11 @@ class PrivateChatHandler
         if (!MessageValidator::requireAuth($connection)) return;
         if (!MessageValidator::checkRateLimit($connection)) return;
 
+        $clientMsgId = isset($msg['client_msg_id']) ? (string)$msg['client_msg_id'] : null;
+
         $toId = (int)($msg['to_id'] ?? 0);
         if ($toId <= 0) {
-            MessageValidator::sendError($connection, '接收者 ID 无效');
+            MessageValidator::sendError($connection, '接收者 ID 无效', 'INVALID_RECEIVER', $clientMsgId);
             return;
         }
 
@@ -36,23 +38,23 @@ class PrivateChatHandler
                 ->where('friend_id', $toId)
                 ->find();
             if (!$isFriend) {
-                MessageValidator::sendError($connection, '对方不是您的好友');
+                MessageValidator::sendError($connection, '对方不是您的好友', 'NOT_FRIEND', $clientMsgId);
                 return;
             }
 
             // users.status: 1=正常 2=禁言 3=封禁
             $userStatus = (int)(Db::table('users')->where('id', $connection->userId)->value('status') ?? 1);
             if ($userStatus === 3) {
-                MessageValidator::sendError($connection, '账号已被封禁');
+                MessageValidator::sendError($connection, '账号已被封禁', 'USER_BANNED', $clientMsgId);
                 return;
             }
             if ($userStatus === 2) {
-                MessageValidator::sendError($connection, '您已被禁言');
+                MessageValidator::sendError($connection, '您已被禁言', 'USER_MUTED', $clientMsgId);
                 return;
             }
         } catch (\Exception $e) {
             echo "[DB Error] checkFriendship: {$e->getMessage()}\n";
-            MessageValidator::sendError($connection, '服务器错误');
+            MessageValidator::sendError($connection, '服务器错误', 'SERVER_ERROR', $clientMsgId);
             return;
         }
 
@@ -85,6 +87,9 @@ class PrivateChatHandler
         ];
         if ($parsed['mediaInfo']) {
             $pushData['media_info'] = $parsed['mediaInfo'];
+        }
+        if ($clientMsgId !== null && $clientMsgId !== '') {
+            $pushData['client_msg_id'] = $clientMsgId;
         }
 
         $delivered = $this->cm->sendToUser($toId, $pushData);

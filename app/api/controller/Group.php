@@ -573,6 +573,44 @@ class Group extends BaseApi
     }
 
     /**
+     * 群主/管理员开关"全员禁言"
+     * POST /api/group/set-all-muted
+     *
+     * @body group_id  int
+     * @body all_muted int 0=关闭 1=开启
+     */
+    public function setAllMuted(): Response
+    {
+        $userId   = $this->getUserId();
+        $groupId  = (int)$this->request->post('group_id', 0);
+        $allMuted = (int)$this->request->post('all_muted', 0) === 1 ? 1 : 0;
+
+        if ($groupId <= 0) {
+            return $this->error(ErrorCode::PARAM_MISSING);
+        }
+
+        $group = GroupModel::find($groupId);
+        if (!$group || !$group->isActive()) {
+            return $this->error(ErrorCode::GROUP_NOT_FOUND);
+        }
+
+        // 操作者必须是管理员/群主
+        $operator = GroupMember::where('group_id', $groupId)
+            ->where('user_id', $userId)
+            ->find();
+        if (!$operator || !$operator->isAdmin()) {
+            return $this->error(ErrorCode::GROUP_NO_PERMISSION);
+        }
+
+        $group->all_muted = $allMuted;
+        $group->save();
+
+        return $this->success([
+            'all_muted' => $allMuted,
+        ], $allMuted === 1 ? '已开启全员禁言' : '已关闭全员禁言');
+    }
+
+    /**
      * 生成群邀请 token（用于二维码 / 邀请链接）
      * POST /api/group/invite-token
      *

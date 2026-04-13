@@ -25,9 +25,11 @@ class RedPacketHandler
     {
         if (!MessageValidator::requireAuth($connection)) return;
 
+        $clientMsgId = isset($msg['client_msg_id']) ? (string)$msg['client_msg_id'] : null;
+
         $redPacketId = (int)($msg['red_packet_id'] ?? 0);
         if ($redPacketId <= 0) {
-            MessageValidator::sendError($connection, '红包ID无效');
+            MessageValidator::sendError($connection, '红包ID无效', 'INVALID_RED_PACKET', $clientMsgId);
             return;
         }
 
@@ -37,17 +39,83 @@ class RedPacketHandler
                 ->where('user_id', $connection->userId)
                 ->find();
             if (!$packet) {
-                MessageValidator::sendError($connection, '红包不存在');
+                MessageValidator::sendError($connection, '红包不存在', 'RED_PACKET_NOT_FOUND', $clientMsgId);
                 return;
             }
         } catch (\Exception $e) {
             echo "[DB Error] handleRedPacketMessage: {$e->getMessage()}\n";
-            MessageValidator::sendError($connection, '服务器错误');
+            MessageValidator::sendError($connection, '服务器错误', 'SERVER_ERROR', $clientMsgId);
             return;
         }
 
         $greeting   = $packet['greeting'] ?: '恭喜发财，大吉大利';
         $targetType = (int)$packet['target_type'];
+
+        // 发送前校验：用户全局状态 / 好友关系（私聊） / 群禁言（群聊）
+        try {
+            $userStatus = (int)(Db::table('users')->where('id', $connection->userId)->value('status') ?? 1);
+            if ($userStatus === 3) {
+                MessageValidator::sendError($connection, '账号已被封禁', 'USER_BANNED', $clientMsgId);
+                return;
+            }
+            if ($userStatus === 2) {
+                MessageValidator::sendError($connection, '您已被禁言', 'USER_MUTED', $clientMsgId);
+                return;
+            }
+
+            if ($targetType === 2) {
+                // 私聊红包：必须是好友
+                $toId = (int)$packet['target_id'];
+                $isFriend = Db::table('friendships')
+                    ->where('user_id', $connection->userId)
+                    ->where('friend_id', $toId)
+                    ->find();
+                if (!$isFriend) {
+                    MessageValidator::sendError($connection, '对方不是您的好友', 'NOT_FRIEND', $clientMsgId);
+                    return;
+                }
+            } elseif ($targetType === 3) {
+                // 群聊红包：必须是成员 + 群未被封禁 + 全员禁言/单人禁言校验
+                $groupId = (int)$packet['target_id'];
+                $memberRow = Db::table('group_members')
+                    ->where('group_id', $groupId)
+                    ->where('user_id', $connection->userId)
+                    ->find();
+                if (!$memberRow) {
+                    MessageValidator::sendError($connection, '您不是该群成员', 'NOT_GROUP_MEMBER', $clientMsgId);
+                    return;
+                }
+
+                $group = Db::table('groups')
+                    ->field('id, status, banned, all_muted')
+                    ->where('id', $groupId)
+                    ->find();
+                if (!$group || (int)$group['status'] !== 1) {
+                    MessageValidator::sendError($connection, '群组不存在或已解散', 'GROUP_NOT_FOUND', $clientMsgId);
+                    return;
+                }
+                if ((int)($group['banned'] ?? 0) === 1) {
+                    MessageValidator::sendError($connection, '群聊已被限制', 'GROUP_BANNED', $clientMsgId);
+                    return;
+                }
+
+                $memberRole = (int)($memberRow['role'] ?? 0);
+                if ((int)($group['all_muted'] ?? 0) === 1 && $memberRole < 1) {
+                    MessageValidator::sendError($connection, '群聊已全员禁言', 'GROUP_ALL_MUTED', $clientMsgId);
+                    return;
+                }
+
+                $mutedUntil = $memberRow['muted_until'] ?? null;
+                if ($mutedUntil && strtotime($mutedUntil) > time()) {
+                    MessageValidator::sendError($connection, '您已在该群被禁言', 'GROUP_MEMBER_MUTED', $clientMsgId);
+                    return;
+                }
+            }
+        } catch (\Exception $e) {
+            echo "[DB Error] redPacket precheck: {$e->getMessage()}\n";
+            MessageValidator::sendError($connection, '服务器错误', 'SERVER_ERROR', $clientMsgId);
+            return;
+        }
 
         $broadcastData = [
             'type'           => 'red_packet',
@@ -61,6 +129,9 @@ class RedPacketHandler
             'target_id'      => (int)$packet['target_id'],
             'created_at'     => date('Y-m-d H:i:s'),
         ];
+        if ($clientMsgId !== null && $clientMsgId !== '') {
+            $broadcastData['client_msg_id'] = $clientMsgId;
+        }
 
         $contentJson = json_encode(['red_packet_id' => $redPacketId, 'greeting' => $greeting], JSON_UNESCAPED_UNICODE);
 
