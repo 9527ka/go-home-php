@@ -83,13 +83,22 @@ Route::group('', function () {
     Route::post('group/invite', 'Group/invite');
     Route::post('group/leave', 'Group/leave');
     Route::post('group/kick', 'Group/kick');
+    Route::post('group/set-role', 'Group/setRole');
+    Route::post('group/set-alias', 'Group/setAlias');
+    Route::post('group/mute-member', 'Group/muteMember');
+    Route::post('group/set-all-muted', 'Group/setAllMuted');
     Route::post('group/disband', 'Group/disband');
+    Route::post('group/invite-token', 'Group/inviteToken');
+    Route::post('group/join-by-token', 'Group/joinByToken');
     Route::get('group/messages', 'Group/messages');
 
     // 私信
     Route::get('pm/history', 'Pm/history');
     Route::get('pm/conversations', 'Pm/conversations');
     Route::post('pm/read', 'Pm/read');
+
+    // 腾讯云 TRTC（私聊语音通话）
+    Route::post('rtc/user-sig', 'Rtc/userSig');
 
     // 签到
     Route::post('sign', 'Sign/sign');
