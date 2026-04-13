@@ -25,7 +25,16 @@ class ApnsPushService
      */
     private static function isConfigured(): bool
     {
-        return !empty(config('apns.key_id')) && !empty(config('apns.team_id')) && !empty(config('apns.key_path'));
+        $ok = !empty(config('apns.key_id')) && !empty(config('apns.team_id')) && !empty(config('apns.key_path'));
+        if (!$ok) {
+            // 每进程只提醒一次，避免刷屏
+            static $warned = false;
+            if (!$warned) {
+                Log::warning('[APNs] push disabled: APNS_KEY_ID / APNS_TEAM_ID / APNS_KEY_PATH 未在 .env 中配置，离线用户将收不到推送');
+                $warned = true;
+            }
+        }
+        return $ok;
     }
 
     /**

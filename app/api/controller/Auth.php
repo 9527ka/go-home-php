@@ -261,7 +261,18 @@ class Auth extends BaseApi
         }
 
         // 软删除：设置 status=2 和 deleted_at
-        $user->status     = 2;
+        // 同时释放唯一键占用（uk_apple_id、uk_account），
+        // 避免同一 Apple ID / 手机号 / 邮箱将来重新注册时触发 1062 冲突。
+        // 原值保留到 deleted_apple_id / deleted_account 方便审计追溯。
+        $user->status = 2;
+        if (!empty($user->apple_id)) {
+            $user->deleted_apple_id = $user->apple_id;
+            $user->apple_id = null;
+        }
+        if (!empty($user->account)) {
+            $user->deleted_account = $user->account;
+            $user->account = null;
+        }
         $user->deleted_at = date('Y-m-d H:i:s');
         $user->save();
 
