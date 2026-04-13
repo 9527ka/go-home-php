@@ -40,6 +40,7 @@ use worker\Chat\PublicChatHandler;
 use worker\Chat\PrivateChatHandler;
 use worker\Chat\GroupChatHandler;
 use worker\Chat\RedPacketHandler;
+use worker\Chat\CallSignalingHandler;
 
 // ===== 引导 ThinkPHP 框架 =====
 (new think\App())->initialize();
@@ -61,6 +62,7 @@ $publicHandler    = new PublicChatHandler($cm);
 $privateHandler   = new PrivateChatHandler($cm);
 $groupHandler     = new GroupChatHandler($cm);
 $redPacketHandler = new RedPacketHandler($cm);
+$callHandler      = new CallSignalingHandler($cm);
 
 // =====================================================================
 //  辅助函数
@@ -161,7 +163,7 @@ $ws->onConnect = function (TcpConnection $connection) use ($cm) {
 
 // ----- onMessage -----
 $ws->onMessage = function (TcpConnection $connection, $data) use (
-    $authHandler, $publicHandler, $privateHandler, $groupHandler, $redPacketHandler
+    $authHandler, $publicHandler, $privateHandler, $groupHandler, $redPacketHandler, $callHandler
 ) {
     $msg = json_decode($data, true);
     if (!$msg || !isset($msg['type'])) return;
@@ -183,6 +185,9 @@ $ws->onMessage = function (TcpConnection $connection, $data) use (
             break;
         case 'red_packet':
             $redPacketHandler->handle($connection, $msg);
+            break;
+        case 'call_signal':
+            $callHandler->handle($connection, $msg);
             break;
         case 'ping':
             $connection->lastActiveTime = time();

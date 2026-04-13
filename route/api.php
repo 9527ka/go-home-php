@@ -94,6 +94,9 @@ Route::group('api', function () {
         Route::post('pm/read', 'api/Pm/read');
         Route::post('pm/mute', 'api/Pm/mute');
 
+        // 腾讯云 TRTC（私聊语音通话）
+        Route::post('rtc/user-sig', 'api/Rtc/userSig');
+
         // 点赞
         Route::post('like/toggle', 'api/Like/toggle');
         Route::get('like/status', 'api/Like/status');
