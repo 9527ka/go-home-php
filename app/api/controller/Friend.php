@@ -390,7 +390,7 @@ class Friend extends BaseApi
     {
         try {
             $fromUser = User::field('id,nickname,avatar,user_code')->find($fromUserId);
-            $data = json_encode([
+            \app\common\service\WsPushService::sendToUser($toUserId, [
                 'type'       => 'private_message',
                 'id'         => $pm->id,
                 'from_id'    => $fromUserId,
@@ -401,42 +401,9 @@ class Friend extends BaseApi
                 'content'    => $pm->content,
                 'msg_type'   => $pm->msg_type,
                 'created_at' => $pm->created_at,
-            ], JSON_UNESCAPED_UNICODE);
-
-            $this->sendToWebSocket($toUserId, $data);
+            ]);
         } catch (\Exception $e) {
             trace('[Friend] pushPrivateMessage error: ' . $e->getMessage(), 'error');
-        }
-    }
-
-    /**
-     * 向 WebSocket 服务发送消息
-     * 使用 fsockopen 直接连接到 WebSocket 内部端口
-     */
-    private function sendToWebSocket(int $userId, string $data): void
-    {
-        // 方案1: 使用内部 TCP 端口通信（需要 WebSocket 服务开启内部端口）
-        // 方案2: 使用 Redis Pub/Sub
-        // 方案3: 直接调用 AsyncTcpConnection
-        
-        // 这里使用简单方案: 尝试连接内部端口 (127.0.0.1:7272)
-        // 如果 WebSocket 服务未开启内部端口，此方法静默失败
-        try {
-            $internalHost = '127.0.0.1';
-            $internalPort = 7272; // WebSocket 内部通信端口
-            
-            $socket = @fsockopen($internalHost, $internalPort, $errno, $errstr, 1);
-            if ($socket) {
-                $message = json_encode([
-                    'cmd' => 'send_to_user',
-                    'user_id' => $userId,
-                    'data' => $data,
-                ]);
-                fwrite($socket, $message . "\n");
-                fclose($socket);
-            }
-        } catch (\Exception $e) {
-            // 静默失败，不影响主流程
         }
     }
 }

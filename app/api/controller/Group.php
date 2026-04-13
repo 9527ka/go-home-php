@@ -8,6 +8,8 @@ use app\common\model\Friendship;
 use app\common\model\Group as GroupModel;
 use app\common\model\GroupMember;
 use app\common\model\GroupMessage;
+use app\common\model\User;
+use app\common\service\GroupSystemMessageService;
 use think\facade\Db;
 use think\Response;
 
@@ -61,6 +63,7 @@ class Group extends BaseApi
         ]);
 
         // 邀请初始成员（仅限好友）
+        $addedIds = [];
         if (is_array($memberIds) && !empty($memberIds)) {
             $count = 1;
             foreach ($memberIds as $memberId) {
@@ -87,6 +90,7 @@ class Group extends BaseApi
                         'joined_at' => date('Y-m-d H:i:s'),
                     ]);
                     $count++;
+                    $addedIds[] = $memberId;
                 } catch (\Exception $e) {
                     // 唯一键冲突等异常，跳过
                     continue;
@@ -94,6 +98,16 @@ class Group extends BaseApi
             }
             $group->member_count = $count;
             $group->save();
+        }
+
+        // 系统通知：群主邀请了 X、Y、Z 加入群聊
+        if (!empty($addedIds)) {
+            $ownerName = $this->resolveNickname($userId);
+            $names = $this->resolveNicknames($addedIds);
+            GroupSystemMessageService::send(
+                (int)$group->id,
+                $ownerName . ' 邀请了 ' . implode('、', $names) . ' 加入群聊'
+            );
         }
 
         return $this->success($group->toArray());
@@ -211,6 +225,9 @@ class Group extends BaseApi
         $allow = ['name', 'avatar', 'description', 'announcement'];
         $data = $this->request->only($allow, 'post');
 
+        $oldName = (string)$group->name;
+        $oldAnn  = (string)($group->announcement ?? '');
+
         if (!empty($data)) {
             foreach ($data as $key => $value) {
                 if (is_string($value)) {
@@ -218,6 +235,26 @@ class Group extends BaseApi
                 }
             }
             $group->save($data);
+        }
+
+        // 系统通知：群名 / 群公告变动（avatar、description 不发）
+        $operatorName = $this->resolveNickname($userId);
+        if (array_key_exists('name', $data) && $data['name'] !== $oldName && $data['name'] !== '') {
+            GroupSystemMessageService::send(
+                $groupId,
+                $operatorName . ' 将群名修改为 "' . $data['name'] . '"'
+            );
+        }
+        if (array_key_exists('announcement', $data) && $data['announcement'] !== $oldAnn) {
+            $annText = $data['announcement'];
+            if ($annText === '') {
+                $content = $operatorName . ' 清空了群公告';
+            } else {
+                $preview = mb_substr($annText, 0, 50);
+                if (mb_strlen($annText) > 50) $preview .= '…';
+                $content = $operatorName . " 更新了群公告：\n" . $preview;
+            }
+            GroupSystemMessageService::send($groupId, $content);
         }
 
         return $this->success($group->toArray(), '更新成功');
@@ -254,6 +291,7 @@ class Group extends BaseApi
         }
 
         $added = 0;
+        $addedIds = [];
         foreach ($userIds as $uid) {
             $uid = (int)$uid;
             if ($uid <= 0) continue;
@@ -280,12 +318,21 @@ class Group extends BaseApi
                 'joined_at' => date('Y-m-d H:i:s'),
             ]);
             $added++;
+            $addedIds[] = $uid;
         }
 
         // 更新人数
         if ($added > 0) {
             $group->member_count = GroupMember::where('group_id', $groupId)->count();
             $group->save();
+
+            // 系统通知：邀请者 邀请了 X、Y、Z 加入群聊
+            $inviterName = $this->resolveNickname($userId);
+            $names = $this->resolveNicknames($addedIds);
+            GroupSystemMessageService::send(
+                $groupId,
+                $inviterName . ' 邀请了 ' . implode('、', $names) . ' 加入群聊'
+            );
         }
 
         return $this->success(null, "已邀请 {$added} 人入群");
@@ -328,6 +375,12 @@ class Group extends BaseApi
         // 更新人数
         $group->member_count = GroupMember::where('group_id', $groupId)->count();
         $group->save();
+
+        // 系统通知：XXX 退出了群聊
+        GroupSystemMessageService::send(
+            $groupId,
+            $this->resolveNickname($userId) . ' 退出了群聊'
+        );
 
         return $this->success(null, '已退出群组');
     }
@@ -373,6 +426,12 @@ class Group extends BaseApi
 
         $group->member_count = GroupMember::where('group_id', $groupId)->count();
         $group->save();
+
+        // 系统通知：操作者 将 被踢者 移出了群聊
+        GroupSystemMessageService::send(
+            $groupId,
+            $this->resolveNickname($userId) . ' 将 ' . $this->resolveNickname($targetId) . ' 移出了群聊'
+        );
 
         return $this->success(null, '已踢出');
     }
@@ -451,8 +510,18 @@ class Group extends BaseApi
             return $this->error(ErrorCode::PARAM_MISSING, '该用户不是群成员');
         }
 
+        $oldRole = (int)$member->role;
         $member->role = $role;
         $member->save();
+
+        // 系统通知：设为/取消管理员（role 0=普通 1=管理员；群主 role=2 此处不会经过）
+        if ($oldRole !== $role) {
+            $targetName = $this->resolveNickname($targetId);
+            $content = $role === 1
+                ? $targetName . ' 已被设为本群管理员'
+                : $targetName . ' 已被取消管理员';
+            GroupSystemMessageService::send($groupId, $content);
+        }
 
         return $this->success(null, '角色已更新');
     }
@@ -605,6 +674,23 @@ class Group extends BaseApi
         $group->all_muted = $allMuted;
         $group->save();
 
+        // 实时推送给所有群成员（含管理员自己），客户端据此即时更新输入栏可用性 & 提示横幅
+        $memberIds = GroupMember::where('group_id', $groupId)->column('user_id');
+        \app\common\service\WsPushService::sendToUsers($memberIds, [
+            'type'        => 'group_event',
+            'event'       => 'all_muted_changed',
+            'group_id'    => $groupId,
+            'all_muted'   => $allMuted,
+            'operator_id' => $userId,
+        ]);
+
+        // 系统通知：开启/关闭全员禁言
+        $operatorName = $this->resolveNickname($userId);
+        GroupSystemMessageService::send(
+            $groupId,
+            $operatorName . ($allMuted === 1 ? ' 开启了全员禁言' : ' 关闭了全员禁言')
+        );
+
         return $this->success([
             'all_muted' => $allMuted,
         ], $allMuted === 1 ? '已开启全员禁言' : '已关闭全员禁言');
@@ -713,6 +799,12 @@ class Group extends BaseApi
         $group->member_count = GroupMember::where('group_id', $groupId)->count();
         $group->save();
 
+        // 系统通知：XXX 通过扫一扫加入了群聊
+        GroupSystemMessageService::send(
+            $groupId,
+            $this->resolveNickname($userId) . ' 通过扫一扫加入了群聊'
+        );
+
         return $this->success(['group_id' => $groupId, 'already_member' => false], '已加入群组');
     }
 
@@ -764,5 +856,36 @@ class Group extends BaseApi
             'list'     => $messages,
             'has_more' => $hasMore,
         ]);
+    }
+
+    /**
+     * 查询单个用户昵称，用于系统消息文案拼接。
+     * 找不到时返回占位符。
+     */
+    private function resolveNickname(int $userId): string
+    {
+        if ($userId <= 0) return '某用户';
+        $nick = User::where('id', $userId)->value('nickname');
+        return (is_string($nick) && $nick !== '') ? $nick : '某用户';
+    }
+
+    /**
+     * 批量查询昵称，按传入 id 顺序返回。
+     *
+     * @param int[] $userIds
+     * @return string[]
+     */
+    private function resolveNicknames(array $userIds): array
+    {
+        $userIds = array_values(array_unique(array_map('intval', $userIds)));
+        if (empty($userIds)) return [];
+
+        $map = User::whereIn('id', $userIds)->column('nickname', 'id');
+        $out = [];
+        foreach ($userIds as $uid) {
+            $nick = $map[$uid] ?? '';
+            $out[] = ($nick !== '') ? $nick : '某用户';
+        }
+        return $out;
     }
 }
