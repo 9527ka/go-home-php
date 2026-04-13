@@ -8,6 +8,7 @@ use app\common\model\Friendship;
 use app\common\model\Group as GroupModel;
 use app\common\model\GroupMember;
 use app\common\model\GroupMessage;
+use think\facade\Db;
 use think\Response;
 
 class Group extends BaseApi
@@ -164,6 +165,7 @@ class Group extends BaseApi
                 'nickname'  => $m['user']['nickname'] ?? '',
                 'avatar'    => $m['user']['avatar'] ?? '',
                 'user_code' => $m['user']['user_code'] ?? '',
+                'alias'     => $m['alias'] ?? '',
                 'role'      => $m['role'],
                 'joined_at' => $m['joined_at'],
             ];
@@ -206,7 +208,7 @@ class Group extends BaseApi
             return $this->error(ErrorCode::GROUP_NO_PERMISSION, '无权修改群信息');
         }
 
-        $allow = ['name', 'avatar', 'description'];
+        $allow = ['name', 'avatar', 'description', 'announcement'];
         $data = $this->request->only($allow, 'post');
 
         if (!empty($data)) {
@@ -304,6 +306,11 @@ class Group extends BaseApi
             return $this->error(ErrorCode::PARAM_MISSING);
         }
 
+        // 公共聊天室（id=1）不允许退出
+        if ($groupId === 1) {
+            return $this->error(ErrorCode::GROUP_NO_PERMISSION, '公共聊天室不允许退出');
+        }
+
         $group = GroupModel::find($groupId);
         if (!$group) {
             return $this->error(ErrorCode::GROUP_NOT_FOUND);
@@ -371,6 +378,39 @@ class Group extends BaseApi
     }
 
     /**
+     * 设置我在本群的昵称（别名）
+     * POST /api/group/set-alias
+     *
+     * @body group_id int
+     * @body alias    string
+     */
+    public function setAlias(): Response
+    {
+        $userId = $this->getUserId();
+        $groupId = (int)$this->request->post('group_id', 0);
+        $alias = trim((string)$this->request->post('alias', ''));
+
+        if ($groupId <= 0) {
+            return $this->error(ErrorCode::PARAM_MISSING);
+        }
+        if (mb_strlen($alias) > 50) {
+            return $this->error(ErrorCode::PARAM_MISSING, '别名过长');
+        }
+
+        $member = GroupMember::where('group_id', $groupId)
+            ->where('user_id', $userId)
+            ->find();
+        if (!$member) {
+            return $this->error(ErrorCode::GROUP_NOT_MEMBER);
+        }
+
+        $member->alias = htmlspecialchars($alias, ENT_QUOTES, 'UTF-8');
+        $member->save();
+
+        return $this->success(null, '已更新');
+    }
+
+    /**
      * 设置群成员角色（仅群主）
      * POST /api/group/set-role
      *
@@ -432,6 +472,11 @@ class Group extends BaseApi
             return $this->error(ErrorCode::PARAM_MISSING);
         }
 
+        // 公共聊天室（id=1）不允许解散
+        if ($groupId === 1) {
+            return $this->error(ErrorCode::GROUP_NO_PERMISSION, '公共聊天室不允许解散');
+        }
+
         $group = GroupModel::find($groupId);
         if (!$group) {
             return $this->error(ErrorCode::GROUP_NOT_FOUND);
@@ -452,8 +497,193 @@ class Group extends BaseApi
     }
 
     /**
-     * 获取群消息历史
-     * GET /api/group/messages?group_id=xxx&before_id=xxx&limit=50
+     * 群主/管理员禁言群内某成员
+     * POST /api/group/mute-member
+     *
+     * @body group_id int
+     * @body user_id  int   被禁言者
+     * @body minutes  int   时长（分钟）：0=解除禁言；-1=永久；>0=指定分钟数
+     */
+    public function muteMember(): Response
+    {
+        $userId   = $this->getUserId();
+        $groupId  = (int)$this->request->post('group_id', 0);
+        $targetId = (int)$this->request->post('user_id', 0);
+        $minutes  = (int)$this->request->post('minutes', 0);
+
+        if ($groupId <= 0 || $targetId <= 0) {
+            return $this->error(ErrorCode::PARAM_MISSING);
+        }
+
+        $group = GroupModel::find($groupId);
+        if (!$group || !$group->isActive()) {
+            return $this->error(ErrorCode::GROUP_NOT_FOUND);
+        }
+
+        // 操作者必须是管理员/群主
+        $operator = GroupMember::where('group_id', $groupId)
+            ->where('user_id', $userId)
+            ->find();
+        if (!$operator || !$operator->isAdmin()) {
+            return $this->error(ErrorCode::GROUP_NO_PERMISSION);
+        }
+
+        // 不能禁言群主
+        if ($targetId === (int)$group->owner_id) {
+            return $this->error(ErrorCode::GROUP_NO_PERMISSION, '不能禁言群主');
+        }
+
+        // 自己不能禁言自己
+        if ($targetId === $userId) {
+            return $this->error(ErrorCode::GROUP_NO_PERMISSION);
+        }
+
+        // 管理员之间不能互相禁言：仅群主可禁言其他管理员
+        if ((int)$group->owner_id !== $userId) {
+            $target = GroupMember::where('group_id', $groupId)
+                ->where('user_id', $targetId)
+                ->find();
+            if ($target && $target->isAdmin()) {
+                return $this->error(ErrorCode::GROUP_NO_PERMISSION, '管理员之间不能互相禁言');
+            }
+        }
+
+        $member = GroupMember::where('group_id', $groupId)
+            ->where('user_id', $targetId)
+            ->find();
+        if (!$member) {
+            return $this->error(ErrorCode::PARAM_MISSING, '该用户不是群成员');
+        }
+
+        if ($minutes === 0) {
+            $member->muted_until = null;
+            $msg = '已解除禁言';
+        } elseif ($minutes < 0) {
+            $member->muted_until = '2099-12-31 23:59:59';
+            $msg = '已永久禁言';
+        } else {
+            $member->muted_until = date('Y-m-d H:i:s', time() + $minutes * 60);
+            $msg = "已禁言 {$minutes} 分钟";
+        }
+        $member->save();
+
+        return $this->success([
+            'muted_until' => $member->muted_until,
+        ], $msg);
+    }
+
+    /**
+     * 生成群邀请 token（用于二维码 / 邀请链接）
+     * POST /api/group/invite-token
+     *
+     * @body group_id int
+     * @body ttl      int  有效期（秒），默认 7 天
+     */
+    public function inviteToken(): Response
+    {
+        $userId = $this->getUserId();
+        $groupId = (int)$this->request->post('group_id', 0);
+        $ttl     = (int)$this->request->post('ttl', 7 * 86400);
+        if ($ttl < 60) $ttl = 60;
+        if ($ttl > 30 * 86400) $ttl = 30 * 86400;
+
+        if ($groupId <= 0) return $this->error(ErrorCode::PARAM_MISSING);
+
+        $group = GroupModel::find($groupId);
+        if (!$group || !$group->isActive()) {
+            return $this->error(ErrorCode::GROUP_NOT_FOUND);
+        }
+        if ($group->isBanned()) {
+            return $this->error(ErrorCode::CHAT_GROUP_BANNED);
+        }
+
+        // 邀请者必须是成员
+        $isMember = GroupMember::where('group_id', $groupId)
+            ->where('user_id', $userId)
+            ->find();
+        if (!$isMember) return $this->error(ErrorCode::GROUP_NOT_MEMBER);
+
+        // 生成 token（32 字符 URL-safe）
+        $token = bin2hex(random_bytes(16));
+        $expiresAt = date('Y-m-d H:i:s', time() + $ttl);
+
+        Db::name('group_invites')->insert([
+            'group_id'   => $groupId,
+            'token'      => $token,
+            'created_by' => $userId,
+            'expires_at' => $expiresAt,
+            'created_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        return $this->success([
+            'token'      => $token,
+            'group_id'   => $groupId,
+            'expires_at' => $expiresAt,
+            'invite_url' => 'gohome://group/invite/' . $token,
+        ]);
+    }
+
+    /**
+     * 通过 token 加入群（扫码 / 邀请链接）
+     * POST /api/group/join-by-token
+     *
+     * @body token string
+     */
+    public function joinByToken(): Response
+    {
+        $userId = $this->getUserId();
+        $token  = trim((string)$this->request->post('token', ''));
+        if ($token === '' || !preg_match('/^[a-f0-9]{32}$/', $token)) {
+            return $this->error(ErrorCode::PARAM_MISSING);
+        }
+
+        $invite = Db::name('group_invites')->where('token', $token)->find();
+        if (!$invite) return $this->error(ErrorCode::PARAM_VALIDATE_FAIL, '邀请链接无效');
+        if (strtotime($invite['expires_at']) < time()) {
+            return $this->error(ErrorCode::PARAM_VALIDATE_FAIL, '邀请链接已过期');
+        }
+
+        $groupId = (int)$invite['group_id'];
+        $group = GroupModel::find($groupId);
+        if (!$group || !$group->isActive()) {
+            return $this->error(ErrorCode::GROUP_NOT_FOUND);
+        }
+        if ($group->isBanned()) {
+            return $this->error(ErrorCode::CHAT_GROUP_BANNED);
+        }
+
+        // 已是成员
+        $exists = GroupMember::where('group_id', $groupId)
+            ->where('user_id', $userId)
+            ->find();
+        if ($exists) {
+            return $this->success(['group_id' => $groupId, 'already_member' => true], '已是群成员');
+        }
+
+        // 人数检查
+        if ($group->member_count >= $group->max_members) {
+            return $this->error(ErrorCode::GROUP_FULL);
+        }
+
+        GroupMember::create([
+            'group_id'  => $groupId,
+            'user_id'   => $userId,
+            'role'      => 0,
+            'joined_at' => date('Y-m-d H:i:s'),
+        ]);
+
+        $group->member_count = GroupMember::where('group_id', $groupId)->count();
+        $group->save();
+
+        return $this->success(['group_id' => $groupId, 'already_member' => false], '已加入群组');
+    }
+
+    /**
+     * 获取群消息历史 / 关键词搜索
+     * GET /api/group/messages?group_id=xxx&before_id=xxx&limit=50&keyword=xxx
+     *
+     * - keyword 为空：分页倒序加载历史
+     * - keyword 非空：在该群所有文本消息中模糊匹配，支持 before_id 翻页
      */
     public function messages(): Response
     {
@@ -461,6 +691,7 @@ class Group extends BaseApi
         $groupId = (int)$this->request->get('group_id', 0);
         $beforeId = (int)$this->request->get('before_id', 0);
         $limit = min(100, max(1, (int)$this->request->get('limit', 50)));
+        $keyword = trim((string)$this->request->get('keyword', ''));
 
         if ($groupId <= 0) {
             return $this->error(ErrorCode::PARAM_MISSING);
@@ -481,13 +712,19 @@ class Group extends BaseApi
         if ($beforeId > 0) {
             $query->where('id', '<', $beforeId);
         }
+        if ($keyword !== '') {
+            // 仅匹配文本消息内容
+            $query->where('msg_type', 'text')
+                  ->where('content', 'like', '%' . $keyword . '%');
+        }
 
         $messages = $query->limit($limit)->select()->toArray();
+        $hasMore = count($messages) === $limit;
         $messages = array_reverse($messages);
 
         return $this->success([
             'list'     => $messages,
-            'has_more' => count($messages) === $limit,
+            'has_more' => $hasMore,
         ]);
     }
 }

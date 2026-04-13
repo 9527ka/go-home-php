@@ -31,22 +31,54 @@ class GroupChatHandler
 
         // 验证群成员身份 & 群组状态
         $group = null;
+        $memberRow = null;
         try {
-            $isMember = Db::table('group_members')
+            $memberRow = Db::table('group_members')
                 ->where('group_id', $groupId)
                 ->where('user_id', $connection->userId)
                 ->find();
-            if (!$isMember) {
+            if (!$memberRow) {
                 MessageValidator::sendError($connection, '您不是该群成员');
                 return;
             }
 
             $group = Db::table('groups')
-                ->field('id, name, avatar, status')
+                ->field('id, name, avatar, status, banned, all_muted')
                 ->where('id', $groupId)
                 ->find();
             if (!$group || $group['status'] != 1) {
                 MessageValidator::sendError($connection, '群组不存在或已解散');
+                return;
+            }
+
+            // 用户全局禁言/封禁（users.status: 1=正常 2=禁言 3=封禁）
+            $userStatus = (int)(Db::table('users')->where('id', $connection->userId)->value('status') ?? 1);
+            if ($userStatus === 3) {
+                MessageValidator::sendError($connection, '账号已被封禁');
+                return;
+            }
+            if ($userStatus === 2) {
+                MessageValidator::sendError($connection, '您已被禁言');
+                return;
+            }
+
+            // 群整体被管理员封禁
+            if ((int)($group['banned'] ?? 0) === 1) {
+                MessageValidator::sendError($connection, '群聊已被限制');
+                return;
+            }
+
+            // 群全员禁言（仅管理员/群主可发）
+            $memberRole = (int)($memberRow['role'] ?? 0);
+            if ((int)($group['all_muted'] ?? 0) === 1 && $memberRole < 1) {
+                MessageValidator::sendError($connection, '群聊已全员禁言');
+                return;
+            }
+
+            // 单人群内禁言
+            $mutedUntil = $memberRow['muted_until'] ?? null;
+            if ($mutedUntil && strtotime($mutedUntil) > time()) {
+                MessageValidator::sendError($connection, '您已在该群被禁言');
                 return;
             }
         } catch (\Exception $e) {
@@ -58,11 +90,28 @@ class GroupChatHandler
         $parsed = MessageValidator::parseAndValidate($connection, $msg);
         if ($parsed === null) return;
 
+        // @提及：仅取群成员中的有效用户
+        $mentions = [];
+        $rawMentions = $msg['mentions'] ?? [];
+        if (is_array($rawMentions) && !empty($rawMentions)) {
+            $candidates = array_unique(array_map('intval', $rawMentions));
+            try {
+                $validIds = Db::table('group_members')
+                    ->where('group_id', $groupId)
+                    ->whereIn('user_id', $candidates)
+                    ->column('user_id');
+                $mentions = array_values(array_map('intval', $validIds));
+            } catch (\Exception $e) {
+                echo "[DB Error] validateMentions: {$e->getMessage()}\n";
+            }
+        }
+
         $now   = date('Y-m-d H:i:s');
         $msgId = MessageRepository::saveGroup(
             $connection->userId, $groupId,
             $parsed['content'], $parsed['msgType'],
             $parsed['mediaUrl'], $parsed['thumbUrl'], $parsed['mediaInfo'],
+            $mentions,
         );
 
         $memberIds = [];
@@ -94,6 +143,9 @@ class GroupChatHandler
         if ($parsed['mediaInfo']) {
             $pushData['media_info'] = $parsed['mediaInfo'];
         }
+        if (!empty($mentions)) {
+            $pushData['mentions'] = $mentions;
+        }
 
         // 发送给群内在线成员，收集离线成员
         $offlineMembers = [];
@@ -108,15 +160,15 @@ class GroupChatHandler
             }
         }
 
-        // 离线 APNs 推送（排除免打扰）
+        // 离线 APNs 推送（排除免打扰；被@的人即使免打扰也推送）
         if (!empty($offlineMembers)) {
-            $this->pushOfflineMembers($connection, $group, $groupId, $offlineMembers, $parsed);
+            $this->pushOfflineMembers($connection, $group, $groupId, $offlineMembers, $parsed, $mentions);
         }
 
         echo "[Group] {$connection->userId} => group#{$groupId}: {$parsed['msgType']} (members=" . count($memberIds) . ")\n";
     }
 
-    private function pushOfflineMembers(TcpConnection $connection, array $group, int $groupId, array $offlineMembers, array $parsed): void
+    private function pushOfflineMembers(TcpConnection $connection, array $group, int $groupId, array $offlineMembers, array $parsed, array $mentions = []): void
     {
         try {
             $mutedUserIds = Db::table('conversation_mutes')
@@ -124,7 +176,11 @@ class GroupChatHandler
                 ->where('target_id', $groupId)
                 ->where('target_type', 'group')
                 ->column('user_id');
-            $pushMembers = array_diff($offlineMembers, $mutedUserIds);
+            // 被@的成员忽略免打扰
+            $pushMembers = array_unique(array_merge(
+                array_diff($offlineMembers, $mutedUserIds),
+                array_intersect($offlineMembers, $mentions),
+            ));
 
             if (!empty($pushMembers)) {
                 $senderName = $connection->userInfo['nickname'] ?? '';
@@ -133,10 +189,24 @@ class GroupChatHandler
                 $preview    = ($parsed['msgType'] === 'text') ? mb_substr($rawContent, 0, 50) : '[' . $parsed['msgType'] . ']';
                 $title      = $groupName ?: $senderName;
                 $body       = $senderName . ': ' . $preview;
-                \app\common\service\ApnsPushService::sendToUsers($pushMembers, $title, $body, [
-                    'type'     => 'group_message',
-                    'group_id' => $groupId,
-                ]);
+
+                // 被@的成员单独推送，前缀 [有人@你]
+                $mentionedTargets = array_values(array_intersect($pushMembers, $mentions));
+                $normalTargets    = array_values(array_diff($pushMembers, $mentionedTargets));
+
+                if (!empty($mentionedTargets)) {
+                    \app\common\service\ApnsPushService::sendToUsers($mentionedTargets, $title, '[有人@你] ' . $body, [
+                        'type'     => 'group_message',
+                        'group_id' => $groupId,
+                        'mentioned' => true,
+                    ]);
+                }
+                if (!empty($normalTargets)) {
+                    \app\common\service\ApnsPushService::sendToUsers($normalTargets, $title, $body, [
+                        'type'     => 'group_message',
+                        'group_id' => $groupId,
+                    ]);
+                }
             }
         } catch (\Throwable $e) {
             echo "[APNs] Group push failed for group#{$groupId}: {$e->getMessage()}\n";

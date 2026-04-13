@@ -171,6 +171,7 @@ const PAGE_LOADERS = {
   audit:      () => loadAuditList(1),
   reports:    () => loadReportList(1),
   users:      () => loadUserList(1),
+  chat:       () => { switchChatTab('private'); },
   clues:      () => loadClueList(1),
   managers:   () => loadManagerList(1),
   wallet:     () => switchWalletTab('recharge'),
@@ -208,6 +209,7 @@ function refreshCurrentPage() {
     case 'audit': loadAuditList(auditData.page || 1); break;
     case 'reports': loadReportList(reportData.page || 1); break;
     case 'users': loadUserList(userData.page || 1); break;
+    case 'chat': switchChatTab(currentChatTab || 'private'); break;
     case 'clues': loadClueList(clueData.page || 1); break;
     case 'managers': loadManagerList(managerData.page || 1); break;
     case 'wallet': switchWalletTab(currentWalletTab); break;

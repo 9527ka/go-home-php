@@ -29,7 +29,7 @@ class PrivateChatHandler
             return;
         }
 
-        // 验证好友关系
+        // 验证好友关系 & 全局禁言/封禁状态
         try {
             $isFriend = Db::table('friendships')
                 ->where('user_id', $connection->userId)
@@ -37,6 +37,17 @@ class PrivateChatHandler
                 ->find();
             if (!$isFriend) {
                 MessageValidator::sendError($connection, '对方不是您的好友');
+                return;
+            }
+
+            // users.status: 1=正常 2=禁言 3=封禁
+            $userStatus = (int)(Db::table('users')->where('id', $connection->userId)->value('status') ?? 1);
+            if ($userStatus === 3) {
+                MessageValidator::sendError($connection, '账号已被封禁');
+                return;
+            }
+            if ($userStatus === 2) {
+                MessageValidator::sendError($connection, '您已被禁言');
                 return;
             }
         } catch (\Exception $e) {

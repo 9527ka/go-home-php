@@ -67,6 +67,14 @@ Route::group('', function () {
     Route::get('wallet/settings', 'WalletManage/settings');
     Route::post('wallet/settings/update', 'WalletManage/settingsUpdate');
 
+    // 聊天监控与管控
+    Route::get('chat/private', 'ChatManage/privateList');
+    Route::get('chat/group', 'ChatManage/groupList');
+    Route::get('chat/groups', 'ChatManage/groups');
+    Route::post('chat/group/ban', 'ChatManage/toggleGroupBan');
+    Route::post('chat/group/mute', 'ChatManage/toggleGroupAllMute');
+    Route::post('chat/member/mute', 'ChatManage/muteMember');
+
     // 签到/任务管理
     Route::get('sign/stats', 'SignManage/stats');
     Route::get('sign/logs', 'SignManage/signLogs');

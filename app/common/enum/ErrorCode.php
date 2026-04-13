@@ -61,6 +61,12 @@ class ErrorCode
     const GROUP_OWNER_CANNOT_LEAVE = 3033;
     const GROUP_FULL               = 3034;
 
+    // ---- 聊天管控 ----
+    const CHAT_USER_MUTED        = 3060; // 用户全局禁言（users.status=2）
+    const CHAT_GROUP_BANNED      = 3061; // 群已被封禁
+    const CHAT_GROUP_ALL_MUTED   = 3062; // 群已开启全员禁言（仅管理员可发）
+    const CHAT_MEMBER_MUTED      = 3063; // 在该群被单独禁言
+
     // ---- 钱包相关 ----
     const WALLET_DISABLED          = 3500;
     const WALLET_INSUFFICIENT      = 3501;
@@ -146,6 +152,11 @@ class ErrorCode
         self::GROUP_NO_PERMISSION      => '无权执行此操作',
         self::GROUP_OWNER_CANNOT_LEAVE => '群主不能退出，请先解散群组',
         self::GROUP_FULL               => '群组人数已满',
+
+        self::CHAT_USER_MUTED          => '您已被禁言',
+        self::CHAT_GROUP_BANNED        => '群聊已被限制',
+        self::CHAT_GROUP_ALL_MUTED     => '群聊已全员禁言',
+        self::CHAT_MEMBER_MUTED        => '您已在该群被禁言',
 
         self::COMMENT_NOT_FOUND        => '评论不存在',
         self::COMMENT_NO_PERMISSION    => '无权操作该评论',

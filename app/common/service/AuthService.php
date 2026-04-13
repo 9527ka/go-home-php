@@ -6,6 +6,8 @@ namespace app\common\service;
 use app\common\enum\ErrorCode;
 use app\common\exception\BusinessException;
 use app\common\model\Friendship;
+use app\common\model\Group;
+use app\common\model\GroupMember;
 use app\common\model\PrivateMessage;
 use app\common\model\User;
 use app\common\model\WalletSetting;
@@ -80,7 +82,39 @@ class AuthService
         // 添加默认客服好友
         self::addDefaultServiceFriend($user->id);
 
+        // 加入公共聊天室（id=1）
+        self::joinPublicChatRoom((int)$user->id);
+
         return $user;
+    }
+
+    /**
+     * 加入公共聊天室（id=1 的群组）
+     */
+    public static function joinPublicChatRoom(int $userId): void
+    {
+        try {
+            $publicGroup = Group::find(1);
+            if (!$publicGroup) return;
+
+            $exists = GroupMember::where('group_id', 1)
+                ->where('user_id', $userId)
+                ->find();
+            if ($exists) return;
+
+            GroupMember::create([
+                'group_id'  => 1,
+                'user_id'   => $userId,
+                'role'      => 0,
+                'alias'     => '',
+                'joined_at' => date('Y-m-d H:i:s'),
+            ]);
+
+            $publicGroup->member_count = GroupMember::where('group_id', 1)->count();
+            $publicGroup->save();
+        } catch (\Exception $e) {
+            Log::warning("joinPublicChatRoom failed: userId={$userId}, err={$e->getMessage()}");
+        }
     }
 
     /**
@@ -249,6 +283,9 @@ class AuthService
 
             // 添加默认客服好友
             self::addDefaultServiceFriend($user->id);
+
+            // 加入公共聊天室
+            self::joinPublicChatRoom((int)$user->id);
         }
 
         $token = self::generateToken($user->id);
@@ -325,6 +362,9 @@ class AuthService
 
         // 添加默认客服好友
         self::addDefaultServiceFriend($user->id);
+
+        // 加入公共聊天室
+        self::joinPublicChatRoom((int)$user->id);
 
         $token = self::generateToken($user->id);
 

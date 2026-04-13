@@ -36,4 +36,20 @@ class Group extends Model
     {
         return $this->status === 1;
     }
+
+    /**
+     * 是否已被管理员封禁
+     */
+    public function isBanned(): bool
+    {
+        return (int)$this->banned === 1;
+    }
+
+    /**
+     * 是否开启全员禁言
+     */
+    public function isAllMuted(): bool
+    {
+        return (int)$this->all_muted === 1;
+    }
 }

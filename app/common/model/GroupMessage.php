@@ -13,7 +13,7 @@ class GroupMessage extends Model
     protected $updateTime = false;
 
     // JSON 字段
-    protected $json = ['media_info'];
+    protected $json = ['media_info', 'mentions'];
     protected $jsonAssoc = true;
 
     /**

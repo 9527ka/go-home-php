@@ -45,9 +45,11 @@ class MessageRepository
     }
 
     /**
-     * 保存群聊消息
+     * 保存群聊消息（支持 @提及）
+     *
+     * @param int[]|null $mentions 被@的用户 ID 数组
      */
-    public static function saveGroup(int $userId, int $groupId, string $content, string $msgType = 'text', string $mediaUrl = '', string $thumbUrl = '', ?array $mediaInfo = null): ?int
+    public static function saveGroup(int $userId, int $groupId, string $content, string $msgType = 'text', string $mediaUrl = '', string $thumbUrl = '', ?array $mediaInfo = null, ?array $mentions = null): ?int
     {
         return self::insert('group_messages', [
             'user_id'    => $userId,
@@ -57,6 +59,7 @@ class MessageRepository
             'media_url'  => $mediaUrl,
             'thumb_url'  => $thumbUrl,
             'media_info' => $mediaInfo ? json_encode($mediaInfo, JSON_UNESCAPED_UNICODE) : null,
+            'mentions'   => !empty($mentions) ? json_encode(array_values(array_unique(array_map('intval', $mentions)))) : null,
             'created_at' => date('Y-m-d H:i:s'),
         ], null);
     }
@@ -67,10 +70,11 @@ class MessageRepository
     public static function getUserInfo(int $userId): ?array
     {
         try {
+            // 允许 status=1(正常) / status=2(禁言：可接收不可发送)；status=3(封禁) 拒绝连接
             $user = Db::table('users')
-                ->field('id, nickname, avatar, user_code')
+                ->field('id, nickname, avatar, user_code, status')
                 ->where('id', $userId)
-                ->where('status', 1)
+                ->where('status', '<>', 3)
                 ->whereNull('deleted_at')
                 ->find();
             return $user ?: null;

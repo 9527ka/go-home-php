@@ -367,9 +367,13 @@ class Friend extends BaseApi
     private function pushFriendAccepted(int $toUserId, int $acceptedUserId): void
     {
         try {
+            $user = User::field('id,nickname,avatar,user_code')->find($acceptedUserId);
             $data = json_encode([
                 'type' => 'friend_accepted',
                 'accepted_user_id' => $acceptedUserId,
+                'nickname' => $user ? $user->nickname : '',
+                'avatar' => $user ? $user->avatar : '',
+                'user_code' => $user ? $user->user_code : '',
                 'timestamp' => time(),
             ], JSON_UNESCAPED_UNICODE);
 
