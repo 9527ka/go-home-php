@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace app\common\service;
 
+use app\common\model\Group;
 use app\common\model\GroupMember;
 use app\common\model\GroupMessage;
 
@@ -42,10 +43,15 @@ class GroupSystemMessageService
             $memberIds = GroupMember::where('group_id', $groupId)->column('user_id');
             if (empty($memberIds)) return;
 
+            // 携带群名/头像，确保会话列表能正确显示（尤其新群首条消息场景）
+            $group = Group::field('name,avatar')->find($groupId);
+
             WsPushService::sendToUsers($memberIds, [
                 'type'         => 'group_message',
                 'id'           => (int)$message->id,
                 'group_id'     => $groupId,
+                'group_name'   => $group ? (string)$group->name : '',
+                'group_avatar' => $group ? (string)$group->avatar : '',
                 'user_id'      => 0,
                 'nickname'     => '',
                 'avatar'       => '',

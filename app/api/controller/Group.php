@@ -225,6 +225,9 @@ class Group extends BaseApi
         $allow = ['name', 'avatar', 'description', 'announcement'];
         $data = $this->request->only($allow, 'post');
 
+        // 记录原始值（用于系统消息，避免 htmlspecialchars 实体出现在提示文案中）
+        $rawName = isset($data['name']) ? trim((string)$data['name']) : null;
+        $rawAnn  = isset($data['announcement']) ? trim((string)$data['announcement']) : null;
         $oldName = (string)$group->name;
         $oldAnn  = (string)($group->announcement ?? '');
 
@@ -238,20 +241,20 @@ class Group extends BaseApi
         }
 
         // 系统通知：群名 / 群公告变动（avatar、description 不发）
+        // 注意：比较用 escaped 后的值（DB 存储的也是 escaped 的），但消息文案用原始值
         $operatorName = $this->resolveNickname($userId);
-        if (array_key_exists('name', $data) && $data['name'] !== $oldName && $data['name'] !== '') {
+        if ($rawName !== null && $data['name'] !== $oldName && $data['name'] !== '') {
             GroupSystemMessageService::send(
                 $groupId,
-                $operatorName . ' 将群名修改为 "' . $data['name'] . '"'
+                $operatorName . ' 将群名修改为 "' . $rawName . '"'
             );
         }
-        if (array_key_exists('announcement', $data) && $data['announcement'] !== $oldAnn) {
-            $annText = $data['announcement'];
-            if ($annText === '') {
+        if ($rawAnn !== null && $data['announcement'] !== $oldAnn) {
+            if ($rawAnn === '') {
                 $content = $operatorName . ' 清空了群公告';
             } else {
-                $preview = mb_substr($annText, 0, 50);
-                if (mb_strlen($annText) > 50) $preview .= '…';
+                $preview = mb_substr($rawAnn, 0, 50);
+                if (mb_strlen($rawAnn) > 50) $preview .= '…';
                 $content = $operatorName . " 更新了群公告：\n" . $preview;
             }
             GroupSystemMessageService::send($groupId, $content);
