@@ -162,6 +162,8 @@ class CallSignalingHandler
     {
         $record = $this->loadRecord($callId, (int)$connection->userId, callerOrCallee: 'callee');
         if (!$record) return;
+        // 仅 invited 状态可接听（主叫可能已 cancel/timeout）
+        if ($record['status'] !== 'invited') return;
 
         $this->updateStatus($callId, 'accepted', true);
         $this->forward($connection, $toId, $callId, 'accept');
@@ -173,6 +175,8 @@ class CallSignalingHandler
     {
         $record = $this->loadRecord($callId, (int)$connection->userId, callerOrCallee: 'callee');
         if (!$record) return;
+        // 仅 invited 状态可拒接（主叫可能已 cancel/timeout）
+        if ($record['status'] !== 'invited') return;
 
         $this->updateStatus($callId, 'declined', false);
         $this->writeCallBubble($callId, (int)$record['caller_id'], (int)$record['callee_id'], 'declined', 0);
