@@ -341,18 +341,13 @@ class Friend extends BaseApi
                 return;
             }
 
-            // 通过 Workerman 内部通信推送（需要 WebSocket 服务运行）
-            $data = json_encode([
+            \app\common\service\WsPushService::sendToUser($toUserId, [
                 'type' => 'friend_request',
                 'from_user_id' => $fromUserId,
                 'from_nickname' => $fromUser['nickname'] ?? '',
                 'from_avatar' => $fromUser['avatar'] ?? '',
                 'timestamp' => time(),
-            ], JSON_UNESCAPED_UNICODE);
-
-            // 使用 AsyncTcpConnection 向 WebSocket 服务发送指令
-            // 由于当前架构是独立的 WebSocket 服务，这里使用内部端口通信
-            $this->sendToWebSocket($toUserId, $data);
+            ]);
         } catch (\Exception $e) {
             // 推送失败不影响主流程
             trace('[Friend] pushFriendRequest error: ' . $e->getMessage(), 'error');
@@ -368,16 +363,14 @@ class Friend extends BaseApi
     {
         try {
             $user = User::field('id,nickname,avatar,user_code')->find($acceptedUserId);
-            $data = json_encode([
+            \app\common\service\WsPushService::sendToUser($toUserId, [
                 'type' => 'friend_accepted',
                 'accepted_user_id' => $acceptedUserId,
                 'nickname' => $user ? $user->nickname : '',
                 'avatar' => $user ? $user->avatar : '',
                 'user_code' => $user ? $user->user_code : '',
                 'timestamp' => time(),
-            ], JSON_UNESCAPED_UNICODE);
-
-            $this->sendToWebSocket($toUserId, $data);
+            ]);
         } catch (\Exception $e) {
             trace('[Friend] pushFriendAccepted error: ' . $e->getMessage(), 'error');
         }
