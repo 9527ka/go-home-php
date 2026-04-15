@@ -53,6 +53,34 @@ class Rtc extends BaseApi
         ]);
     }
 
+    /**
+     * 调试接口：验证 TRTC 配置和 UserSig 生成
+     * GET /api/rtc/debug
+     * 生产环境应删除此接口
+     */
+    public function debug(): Response
+    {
+        $sdkAppId = (int)env('TRTC_SDK_APPID', 0);
+        $secret   = (string)env('TRTC_SDK_SECRET', '');
+        $expire   = (int)env('TRTC_USER_SIG_EXPIRE', 86400);
+
+        $testUserId = 'test_user_debug';
+        $userSig = ($sdkAppId > 0 && $secret !== '')
+            ? self::genUserSig($sdkAppId, $secret, $testUserId, $expire)
+            : 'MISSING_CONFIG';
+
+        return $this->success([
+            'sdk_app_id'     => $sdkAppId,
+            'secret_len'     => strlen($secret),
+            'secret_prefix'  => substr($secret, 0, 6) . '...',
+            'test_user_id'   => $testUserId,
+            'user_sig_len'   => strlen($userSig),
+            'user_sig_prefix' => substr($userSig, 0, 40) . '...',
+            'expire'         => $expire,
+            'hint'           => '请到 TRTC 控制台 > UserSig工具 中用相同 sdkAppId + userId(test_user_debug) 生成 UserSig，对比 user_sig_prefix 是否一致',
+        ]);
+    }
+
     // =====================================================================
     //  TRTC UserSig 算法（TLS 票据签名 v2）
     //  移植自腾讯云官方 PHP 示例：TLSSigAPIv2

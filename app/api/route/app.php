@@ -99,6 +99,7 @@ Route::group('', function () {
 
     // 腾讯云 TRTC（私聊语音通话）
     Route::post('rtc/user-sig', 'Rtc/userSig');
+    Route::get('rtc/debug', 'Rtc/debug');  // 临时调试，验证后删除
 
     // 签到
     Route::post('sign', 'Sign/sign');
