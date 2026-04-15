@@ -124,9 +124,21 @@ class AppleIapService
 
     /**
      * 发送 HTTP 请求到 Apple 验证服务器
+     * 对 status=21002（数据格式错误/Apple 临时故障）自动重试一次
      */
-    private static function sendRequest(string $url, array $payload): ?array
+    private static function sendRequest(string $url, array $payload, bool $isRetry = false): ?array
     {
+        // 诊断日志：帮助定位 receipt 是否为空 / 是否是 StoreKit 2 JWS / 是否被污染
+        $receipt = (string)($payload['receipt-data'] ?? '');
+        Log::info('[AppleIAP] sending to Apple', [
+            'url'          => $url,
+            'receipt_len'  => strlen($receipt),
+            'receipt_head' => substr($receipt, 0, 40),
+            'receipt_tail' => substr($receipt, -40),
+            'has_secret'   => !empty($payload['password']),
+            'is_retry'     => $isRetry,
+        ]);
+
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_POST           => true,
@@ -151,6 +163,15 @@ class AppleIapService
         if (!is_array($decoded)) {
             Log::error('[AppleIAP] Invalid JSON response from Apple');
             return null;
+        }
+
+        // Apple 文档建议：status=21002 可能为临时故障，重试一次
+        if (!$isRetry && ($decoded['status'] ?? -1) === 21002) {
+            Log::warning('[AppleIAP] status 21002, retrying once');
+            $retry = self::sendRequest($url, $payload, true);
+            if ($retry !== null) {
+                return $retry;
+            }
         }
 
         return $decoded;
