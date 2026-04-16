@@ -13,7 +13,7 @@ class MessageValidator
     public const MSG_MAX_LENGTH    = 500;
     // 注意：voice_call 不在此白名单中——通话记录消息仅由服务端 CallSignalingHandler 在通话结束时写入，
     // 客户端若通过 private_message 伪造 voice_call 会被当作 text 处理
-    public const ALLOWED_MSG_TYPES = ['text', 'image', 'video', 'voice', 'red_packet'];
+    public const ALLOWED_MSG_TYPES = ['text', 'image', 'video', 'voice', 'red_packet', 'contact_card'];
     public const RATE_LIMIT_MESSAGES = 10;
     public const RATE_LIMIT_WINDOW   = 10;
 
