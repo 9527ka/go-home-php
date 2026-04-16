@@ -84,6 +84,17 @@ class WalletSetting
         'about_disclaimer'       => ['description' => '关于我们 - 免责声明', 'type' => 'text'],
         'about_privacy'          => ['description' => '关于我们 - 隐私政策', 'type' => 'text'],
         'service_users_per_account' => ['description' => '每个客服账号服务用户上限', 'type' => 'number'],
+        'sign_enabled'               => ['description' => '每日签到总开关', 'type' => 'toggle'],
+        'sign_rewards'               => ['description' => '7天基础奖励数组（JSON，例：[0.1,0.2,0.3,0.5,0.8,1,2]）', 'type' => 'text'],
+        'sign_bonus_2x_multiplier'   => ['description' => '暴击倍率1-倍数（默认2）', 'type' => 'number'],
+        'sign_bonus_5x_multiplier'   => ['description' => '暴击倍率2-倍数（默认5）', 'type' => 'number'],
+        'sign_bonus_10x_multiplier'  => ['description' => '暴击倍率3-倍数（默认10）', 'type' => 'number'],
+        'sign_bonus_2x_rate'         => ['description' => '暴击倍率1概率(%)，默认12', 'type' => 'number'],
+        'sign_bonus_5x_rate'         => ['description' => '暴击倍率2概率(%)，默认3', 'type' => 'number'],
+        'sign_bonus_10x_rate'        => ['description' => '暴击倍率3概率(%)，默认1', 'type' => 'number'],
+        'sign_bonus_guarantee_days'  => ['description' => '保底天数：N天内必出≥指定倍率的暴击（0=关闭）', 'type' => 'number'],
+        'sign_bonus_guarantee_min_rate' => ['description' => '保底最低倍率（默认5，即N天内至少出一次≥5x）', 'type' => 'number'],
+        'reward_daily_release_rate'  => ['description' => '奖励冻结余额每日释放比例(%)', 'type' => 'number'],
     ];
 
     /**

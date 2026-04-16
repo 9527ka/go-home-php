@@ -130,14 +130,16 @@ class AppleIapService
     {
         // 诊断日志：帮助定位 receipt 是否为空 / 是否是 StoreKit 2 JWS / 是否被污染
         $receipt = (string)($payload['receipt-data'] ?? '');
-        Log::info('[AppleIAP] sending to Apple', [
-            'url'          => $url,
-            'receipt_len'  => strlen($receipt),
-            'receipt_head' => substr($receipt, 0, 40),
-            'receipt_tail' => substr($receipt, -40),
-            'has_secret'   => !empty($payload['password']),
-            'is_retry'     => $isRetry,
-        ]);
+        $diag = sprintf(
+            '[AppleIAP] sending url=%s len=%d head=%s tail=%s has_secret=%s retry=%s',
+            $url,
+            strlen($receipt),
+            substr($receipt, 0, 60),
+            substr($receipt, -40),
+            !empty($payload['password']) ? '1' : '0',
+            $isRetry ? '1' : '0'
+        );
+        Log::warning($diag);
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [

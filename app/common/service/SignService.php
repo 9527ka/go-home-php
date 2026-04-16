@@ -75,8 +75,8 @@ class SignService
         // 基础奖励（数组下标从0开始，天数从1开始）
         $baseReward = (float)($rewards[$newStreak - 1] ?? $rewards[0]);
 
-        // 暴击计算
-        $bonusRate = self::rollBonus();
+        // 暴击计算（含保底）
+        $bonusRate = self::rollBonus($userId);
 
         // 最终奖励
         $finalReward = round($baseReward * $bonusRate, 2);
@@ -211,22 +211,95 @@ class SignService
     }
 
     /**
-     * 暴击随机：2%概率5倍，10%概率2倍，88%无暴击
+     * 暴击随机：倍率与概率均可配置（wallet_settings）
+     *
+     * 默认概率：1% -> 10x，3% -> 5x，12% -> 2x，84% -> 1x
+     * 保底：在 guaranteeDays 天内若从未出过 ≥ guaranteeMinRate，则本次强制
+     *      按「保底池」分配（池内按原配置比例归一化，5x/10x 中随机）
+     *
+     * @param int $userId 用户ID，用于查询保底历史
+     * @return int 倍率（1 / 2 / 5 / 10）
      */
-    protected static function rollBonus(): int
+    protected static function rollBonus(int $userId): int
     {
-        $bonus2xRate = (int)WalletSetting::getValue('sign_bonus_2x_rate', '10');
-        $bonus5xRate = (int)WalletSetting::getValue('sign_bonus_5x_rate', '2');
+        // 倍率配置（支持自定义倍数）
+        $bonus2x  = (int)WalletSetting::getValue('sign_bonus_2x_multiplier',  '2');
+        $bonus5x  = (int)WalletSetting::getValue('sign_bonus_5x_multiplier',  '5');
+        $bonus10x = (int)WalletSetting::getValue('sign_bonus_10x_multiplier', '10');
 
-        $roll = mt_rand(1, 100);
+        // 概率配置（百分比整数，总和 ≤ 100）
+        $rate2x  = (int)WalletSetting::getValue('sign_bonus_2x_rate',  '12');
+        $rate5x  = (int)WalletSetting::getValue('sign_bonus_5x_rate',  '3');
+        $rate10x = (int)WalletSetting::getValue('sign_bonus_10x_rate', '1');
 
-        if ($roll <= $bonus5xRate) {
-            return 5;
+        // 保底配置：在 N 天内必出一次 ≥ minRate 的暴击
+        $guaranteeDays    = (int)WalletSetting::getValue('sign_bonus_guarantee_days',     '7');
+        $guaranteeMinRate = (int)WalletSetting::getValue('sign_bonus_guarantee_min_rate', '5');
+
+        // 检查保底触发
+        if ($guaranteeDays > 0 && $guaranteeMinRate > 1) {
+            $startDate = date('Y-m-d', strtotime("-" . ($guaranteeDays - 1) . " days"));
+            $hasBigBonus = SignLog::where('user_id', $userId)
+                ->where('sign_date', '>=', $startDate)
+                ->where('bonus_rate', '>=', $guaranteeMinRate)
+                ->count();
+
+            if ($hasBigBonus === 0) {
+                // 保底触发：从 ≥ guaranteeMinRate 的倍率中，按原概率比例归一化随机
+                return self::pickGuaranteedBonus($guaranteeMinRate, [
+                    [$bonus2x,  $rate2x],
+                    [$bonus5x,  $rate5x],
+                    [$bonus10x, $rate10x],
+                ]);
+            }
         }
-        if ($roll <= $bonus5xRate + $bonus2xRate) {
-            return 2;
+
+        // 正常掷骰（用 1..10000 以支持小数概率 → 整数配置乘 100）
+        $roll = mt_rand(1, 10000);
+        $r10x = $rate10x * 100;
+        $r5x  = $rate5x  * 100;
+        $r2x  = $rate2x  * 100;
+
+        if ($roll <= $r10x) {
+            return $bonus10x;
+        }
+        if ($roll <= $r10x + $r5x) {
+            return $bonus5x;
+        }
+        if ($roll <= $r10x + $r5x + $r2x) {
+            return $bonus2x;
         }
         return 1;
+    }
+
+    /**
+     * 保底触发时，从所有 ≥ minRate 的倍率中按原概率归一化抽取
+     *
+     * @param int   $minRate 最低倍率阈值
+     * @param array $pool    候选池 [[倍数, 权重], ...]
+     * @return int
+     */
+    protected static function pickGuaranteedBonus(int $minRate, array $pool): int
+    {
+        // 筛选合格候选
+        $eligible = array_values(array_filter($pool, fn($p) => $p[0] >= $minRate && $p[1] > 0));
+
+        if (empty($eligible)) {
+            // 配置异常：退化为 minRate
+            return $minRate;
+        }
+
+        $totalWeight = array_sum(array_column($eligible, 1));
+        $roll = mt_rand(1, $totalWeight);
+        $acc = 0;
+        foreach ($eligible as [$multiplier, $weight]) {
+            $acc += $weight;
+            if ($roll <= $acc) {
+                return $multiplier;
+            }
+        }
+
+        return $eligible[0][0];
     }
 
     /**
