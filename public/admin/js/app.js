@@ -176,6 +176,9 @@ const PAGE_LOADERS = {
   managers:   () => loadManagerList(1),
   wallet:     () => switchWalletTab('recharge'),
   signin:     () => { loadSignStats(); loadSignLogs(1); loadTaskDefinitions(); loadTaskLogs(1); },
+  vip:        () => switchVipTab('levels'),
+  lottery:    () => switchLotTab('pools'),
+  foundstory: () => loadFoundStoryList(1),
   settings:   () => { loadBannerConfig(); loadAboutConfig(); loadLangList(); },
 };
 
@@ -214,6 +217,9 @@ function refreshCurrentPage() {
     case 'managers': loadManagerList(managerData.page || 1); break;
     case 'wallet': switchWalletTab(currentWalletTab); break;
     case 'signin': loadSignStats(); loadSignLogs(signinData.page || 1); loadTaskDefinitions(); loadTaskLogs(taskLogData.page || 1); break;
+    case 'vip': switchVipTab(currentVipTab || 'levels'); break;
+    case 'lottery': switchLotTab(currentLotTab || 'pools'); break;
+    case 'foundstory': loadFoundStoryList(fsPage || 1); break;
     case 'settings': loadBannerConfig(); loadAboutConfig(); loadLangList(); break;
   }
 }

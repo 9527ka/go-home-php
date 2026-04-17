@@ -8,6 +8,7 @@ use app\common\enum\WalletTransactionType;
 use app\common\exception\BusinessException;
 use app\common\model\SignLog;
 use app\common\model\UserSignStatus;
+use app\common\model\VipLevel;
 use app\common\model\Wallet;
 use app\common\model\WalletSetting;
 use app\common\model\WalletTransaction;
@@ -75,11 +76,15 @@ class SignService
         // 基础奖励（数组下标从0开始，天数从1开始）
         $baseReward = (float)($rewards[$newStreak - 1] ?? $rewards[0]);
 
-        // 暴击计算（含保底）
-        $bonusRate = self::rollBonus($userId);
+        // 取用户 VIP 等级快照（暴击上限 / 概率加成 / 奖励加成）
+        $vip = VipService::getCurrentLevel($userId);
 
-        // 最终奖励
-        $finalReward = round($baseReward * $bonusRate, 2);
+        // 暴击计算（含保底 + VIP 加成 + 上限裁切）
+        $bonusRate = self::rollBonus($userId, $vip);
+
+        // 最终奖励 = base × 暴击倍率 × (1 + VIP签到加成)
+        $vipSignBonus = (float)$vip->sign_bonus_rate;
+        $finalReward = round($baseReward * $bonusRate * (1 + $vipSignBonus), 2);
 
         // 事务内执行：插入日志、更新状态、发放冻结奖励
         $signLog = Db::transaction(function () use (
@@ -124,6 +129,8 @@ class SignService
             'base_reward'           => (float)$baseReward,
             'bonus_rate'            => $bonusRate,
             'is_bonus'              => $bonusRate > 1,
+            'vip_level_key'         => (string)$vip->level_key,
+            'vip_sign_bonus_rate'   => (float)$vipSignBonus,
             'current_streak'        => $newStreak,
             'day_in_cycle'          => $newStreak,
             'total_sign_days'       => $status->total_sign_days,
@@ -196,47 +203,70 @@ class SignService
             $weekStatus = array_fill(0, 7, false);
         }
 
-        // 今天可获得的奖励
-        $todayReward = (float)($rewards[$dayInCycle - 1] ?? $rewards[0]);
+        // 今天可获得的奖励（含 VIP 签到加成，不含暴击）
+        $baseTodayReward = (float)($rewards[$dayInCycle - 1] ?? $rewards[0]);
+        $vip = VipService::getCurrentLevel($userId);
+        $vipSignBonus = (float)$vip->sign_bonus_rate;
+        $todayReward = round($baseTodayReward * (1 + $vipSignBonus), 2);
 
         return [
-            'signed_today'    => $signedToday,
-            'current_streak'  => $currentStreak,
-            'day_in_cycle'    => $dayInCycle,
-            'today_reward'    => $todayReward,
-            'total_sign_days' => $totalSignDays,
-            'rewards_config'  => $rewards,
-            'week_status'     => $weekStatus,
+            'signed_today'        => $signedToday,
+            'current_streak'      => $currentStreak,
+            'day_in_cycle'        => $dayInCycle,
+            'today_reward'        => $todayReward,
+            'base_today_reward'   => $baseTodayReward,
+            'total_sign_days'     => $totalSignDays,
+            'rewards_config'      => $rewards,
+            'week_status'         => $weekStatus,
+            'vip_level_key'       => (string)$vip->level_key,
+            'vip_sign_bonus_rate' => $vipSignBonus,
+            'vip_crit_max'        => (int)$vip->crit_max_multiple,
         ];
     }
 
     /**
-     * 暴击随机：倍率与概率均可配置（wallet_settings）
+     * 暴击随机：倍率与概率均可配置（wallet_settings），叠加 VIP 概率加成
      *
-     * 默认概率：1% -> 10x，3% -> 5x，12% -> 2x，84% -> 1x
-     * 保底：在 guaranteeDays 天内若从未出过 ≥ guaranteeMinRate，则本次强制
-     *      按「保底池」分配（池内按原配置比例归一化，5x/10x 中随机）
+     * 默认基础概率：1% → 20x（仅至尊）、1% → 10x、3% → 5x、12% → 2x、其余 1x
+     * VIP 概率加成 (vip.crit_prob_bonus) 按绝对百分比叠加到每档，
+     * 超出 vip.crit_max_multiple 的档位不参与抽取
+     * 保底：在 guaranteeDays 天内若从未出过 ≥ guaranteeMinRate，
+     *       则本次强制从合格档位按权重归一化随机
      *
-     * @param int $userId 用户ID，用于查询保底历史
-     * @return int 倍率（1 / 2 / 5 / 10）
+     * @param int      $userId 用户ID，用于查询保底历史
+     * @param VipLevel $vip    当前等级配置
+     * @return int 倍率（1 / 2 / 5 / 10 / 20）
      */
-    protected static function rollBonus(int $userId): int
+    protected static function rollBonus(int $userId, VipLevel $vip): int
     {
+        $capMultiple = (int)$vip->crit_max_multiple;
+        $vipBonus    = (float)$vip->crit_prob_bonus;       // 0~0.15 decimal
+
         // 倍率配置（支持自定义倍数）
         $bonus2x  = (int)WalletSetting::getValue('sign_bonus_2x_multiplier',  '2');
         $bonus5x  = (int)WalletSetting::getValue('sign_bonus_5x_multiplier',  '5');
         $bonus10x = (int)WalletSetting::getValue('sign_bonus_10x_multiplier', '10');
+        $bonus20x = (int)WalletSetting::getValue('sign_bonus_20x_multiplier', '20');
 
-        // 概率配置（百分比整数，总和 ≤ 100）
+        // 基础概率（百分比整数）
         $rate2x  = (int)WalletSetting::getValue('sign_bonus_2x_rate',  '12');
         $rate5x  = (int)WalletSetting::getValue('sign_bonus_5x_rate',  '3');
         $rate10x = (int)WalletSetting::getValue('sign_bonus_10x_rate', '1');
+        $rate20x = (int)WalletSetting::getValue('sign_bonus_20x_rate', '1');
 
-        // 保底配置：在 N 天内必出一次 ≥ minRate 的暴击
+        // 候选档位池：[倍数, 有效概率(decimal)]，仅保留 ≤ capMultiple 的档位
+        $tiers = [];
+        foreach ([[$bonus20x, $rate20x], [$bonus10x, $rate10x], [$bonus5x, $rate5x], [$bonus2x, $rate2x]] as [$mult, $rate]) {
+            if ($mult > $capMultiple) continue;
+            $effective = ($rate / 100.0) + $vipBonus;
+            if ($effective <= 0) continue;
+            $tiers[] = ['multiple' => (int)$mult, 'rate' => $effective];
+        }
+
+        // 保底配置
         $guaranteeDays    = (int)WalletSetting::getValue('sign_bonus_guarantee_days',     '7');
         $guaranteeMinRate = (int)WalletSetting::getValue('sign_bonus_guarantee_min_rate', '5');
 
-        // 检查保底触发
         if ($guaranteeDays > 0 && $guaranteeMinRate > 1) {
             $startDate = date('Y-m-d', strtotime("-" . ($guaranteeDays - 1) . " days"));
             $hasBigBonus = SignLog::where('user_id', $userId)
@@ -245,61 +275,47 @@ class SignService
                 ->count();
 
             if ($hasBigBonus === 0) {
-                // 保底触发：从 ≥ guaranteeMinRate 的倍率中，按原概率比例归一化随机
-                return self::pickGuaranteedBonus($guaranteeMinRate, [
-                    [$bonus2x,  $rate2x],
-                    [$bonus5x,  $rate5x],
-                    [$bonus10x, $rate10x],
-                ]);
+                $eligible = array_values(array_filter($tiers, fn($t) => $t['multiple'] >= $guaranteeMinRate));
+                if (!empty($eligible)) {
+                    return self::pickByWeight($eligible);
+                }
+                return min($guaranteeMinRate, $capMultiple);
             }
         }
 
-        // 正常掷骰（用 1..10000 以支持小数概率 → 整数配置乘 100）
-        $roll = mt_rand(1, 10000);
-        $r10x = $rate10x * 100;
-        $r5x  = $rate5x  * 100;
-        $r2x  = $rate2x  * 100;
-
-        if ($roll <= $r10x) {
-            return $bonus10x;
-        }
-        if ($roll <= $r10x + $r5x) {
-            return $bonus5x;
-        }
-        if ($roll <= $r10x + $r5x + $r2x) {
-            return $bonus2x;
+        // 正常掷骰（精度 1/1_000_000）
+        $roll = mt_rand(1, 1000000);
+        $cumu = 0;
+        foreach ($tiers as $t) {
+            $cumu += (int)round($t['rate'] * 1000000);
+            if ($roll <= $cumu) {
+                return $t['multiple'];
+            }
         }
         return 1;
     }
 
     /**
-     * 保底触发时，从所有 ≥ minRate 的倍率中按原概率归一化抽取
-     *
-     * @param int   $minRate 最低倍率阈值
-     * @param array $pool    候选池 [[倍数, 权重], ...]
-     * @return int
+     * 按权重从候选池中随机（权重取 rate）
+     * @param array $pool [['multiple'=>int, 'rate'=>float], ...]
      */
-    protected static function pickGuaranteedBonus(int $minRate, array $pool): int
+    protected static function pickByWeight(array $pool): int
     {
-        // 筛选合格候选
-        $eligible = array_values(array_filter($pool, fn($p) => $p[0] >= $minRate && $p[1] > 0));
-
-        if (empty($eligible)) {
-            // 配置异常：退化为 minRate
-            return $minRate;
+        $totalWeight = 0;
+        foreach ($pool as $t) {
+            $totalWeight += (int)round($t['rate'] * 1000000);
         }
+        if ($totalWeight <= 0) return $pool[0]['multiple'];
 
-        $totalWeight = array_sum(array_column($eligible, 1));
         $roll = mt_rand(1, $totalWeight);
         $acc = 0;
-        foreach ($eligible as [$multiplier, $weight]) {
-            $acc += $weight;
+        foreach ($pool as $t) {
+            $acc += (int)round($t['rate'] * 1000000);
             if ($roll <= $acc) {
-                return $multiplier;
+                return $t['multiple'];
             }
         }
-
-        return $eligible[0][0];
+        return $pool[0]['multiple'];
     }
 
     /**

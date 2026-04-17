@@ -484,11 +484,15 @@ class WalletService
             $greeting = '恭喜发财，大吉大利';
         }
 
-        return Db::transaction(function () use ($userId, $targetType, $targetId, $totalAmount, $totalCount, $greeting, $expireAt) {
+        // 发红包时快照发送者当前 VIP 等级（E2: 降级后红包外观不变）
+        $senderVipLevel = VipService::getCurrentLevel($userId)->level_key;
+
+        return Db::transaction(function () use ($userId, $senderVipLevel, $targetType, $targetId, $totalAmount, $totalCount, $greeting, $expireAt) {
             self::deduct($userId, $totalAmount, WalletTransactionType::RED_PACKET_SEND, null, '发红包');
 
             $packet = RedPacket::create([
                 'user_id'          => $userId,
+                'sender_vip_level' => $senderVipLevel,
                 'target_type'      => $targetType,
                 'target_id'        => $targetId,
                 'total_amount'     => $totalAmount,

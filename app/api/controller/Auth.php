@@ -7,6 +7,7 @@ use app\api\validate\AuthValidate;
 use app\common\enum\ErrorCode;
 use app\common\model\User;
 use app\common\service\AuthService;
+use app\common\service\UserResource;
 use think\Response;
 
 class Auth extends BaseApi
@@ -176,7 +177,9 @@ class Auth extends BaseApi
             return $this->error(ErrorCode::AUTH_ACCOUNT_NOT_FOUND);
         }
 
-        return $this->success($user->hidden(['password', 'deleted_at']));
+        $data = $user->hidden(['password', 'deleted_at'])->toArray();
+        UserResource::attachVipSingle($data);
+        return $this->success($data);
     }
 
     /**

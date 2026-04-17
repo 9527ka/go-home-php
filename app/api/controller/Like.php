@@ -8,6 +8,7 @@ use app\common\model\Like as LikeModel;
 use app\common\model\Post as PostModel;
 use app\common\model\Comment as CommentModel;
 use app\common\model\Notification;
+use app\common\service\UserResource;
 use think\facade\Db;
 use think\facade\Log;
 use think\Response;
@@ -170,8 +171,11 @@ class Like extends BaseApi
             ->order('created_at', 'desc')
             ->paginate(20, false, ['page' => $page]);
 
+        $items = array_map(fn($x) => $x->toArray(), $list->items());
+        UserResource::attachVipInList($items, 'user');
+
         return $this->successPage([
-            'list'      => $list->items(),
+            'list'      => $items,
             'page'      => $list->currentPage(),
             'page_size' => $list->listRows(),
             'total'     => $list->total(),

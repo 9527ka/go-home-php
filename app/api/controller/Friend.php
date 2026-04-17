@@ -8,6 +8,7 @@ use app\common\model\FriendRequest;
 use app\common\model\Friendship;
 use app\common\model\PrivateMessage;
 use app\common\model\User;
+use app\common\service\UserResource;
 use think\Response;
 
 class Friend extends BaseApi
@@ -37,6 +38,9 @@ class Friend extends BaseApi
             ->limit(20)
             ->select()
             ->toArray();
+
+        // 附加 VIP 快照
+        UserResource::attachVipByUserIdKey($users, 'id', 'vip');
 
         return $this->success(['list' => $users]);
     }
@@ -145,6 +149,8 @@ class Friend extends BaseApi
                 'from_avatar'   => $item['from_user']['avatar'] ?? '',
             ];
         }, $list);
+
+        UserResource::attachVipByUserIdKey($result, 'from_id', 'from_vip');
 
         return $this->success(['list' => $result]);
     }
@@ -274,6 +280,8 @@ class Friend extends BaseApi
                 'created_at' => $item['created_at'],
             ];
         }, $friendships);
+
+        UserResource::attachVipByUserIdKey($list, 'friend_id', 'vip');
 
         return $this->success(['list' => $list]);
     }

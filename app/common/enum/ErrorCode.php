@@ -102,6 +102,18 @@ class ErrorCode
     const TASK_ALREADY_DONE        = 3523;
     const TASK_DISABLED            = 3524;
 
+    // ---- VIP 相关 ----
+    const VIP_LEVEL_NOT_FOUND      = 3540;
+    const VIP_LEVEL_DISABLED       = 3541;
+    const VIP_LEVEL_IS_NORMAL      = 3542; // 尝试购买普通等级
+
+    // ---- 抽奖相关 ----
+    const LOTTERY_DISABLED         = 3560;
+    const LOTTERY_POOL_NOT_FOUND   = 3561;
+    const LOTTERY_TOO_FREQUENT     = 3562;
+    const LOTTERY_DAILY_LIMIT      = 3563;
+    const LOTTERY_NO_PRIZE         = 3564; // 奖池未配置启用的奖品
+
     // ========== 系统相关 4xxx ==========
     const UPLOAD_FAIL           = 4001;
     const SYSTEM_ERROR          = 4002;
@@ -184,6 +196,16 @@ class ErrorCode
         self::TASK_NOT_FOUND           => '任务不存在',
         self::TASK_ALREADY_DONE        => '任务已完成',
         self::TASK_DISABLED            => '任务未开启',
+
+        self::VIP_LEVEL_NOT_FOUND      => 'VIP 等级不存在',
+        self::VIP_LEVEL_DISABLED       => '该 VIP 等级暂未开放',
+        self::VIP_LEVEL_IS_NORMAL      => '普通等级无需购买',
+
+        self::LOTTERY_DISABLED         => '抽奖活动暂未开放',
+        self::LOTTERY_POOL_NOT_FOUND   => '奖池不存在',
+        self::LOTTERY_TOO_FREQUENT     => '操作过快，请稍后再试',
+        self::LOTTERY_DAILY_LIMIT      => '今日抽奖次数已达上限',
+        self::LOTTERY_NO_PRIZE         => '奖池暂无可抽奖品',
 
         self::UPLOAD_FAIL           => '文件上传失败',
         self::SYSTEM_ERROR          => '系统异常，请稍后重试',

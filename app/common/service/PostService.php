@@ -15,6 +15,7 @@ use app\common\model\Favorite;
 use app\common\model\Donation;
 use app\common\model\PostBoost;
 use app\common\model\RewardClaim;
+use app\common\model\WalletSetting;
 use think\facade\Db;
 use think\facade\Log;
 
@@ -213,6 +214,9 @@ class PostService
             $result[] = $row;
         }
 
+        // 附加发布者 VIP 快照（批量，无 N+1）
+        UserResource::attachVipInList($result, 'user');
+
         return [
             'list'      => $result,
             'page'      => $list->currentPage(),
@@ -313,7 +317,140 @@ class PostService
             Log::error('Load donations/boosts failed: ' . $e->getMessage());
         }
 
+        // 附加发布者 / 线索作者 / 悬赏接收方 / 捐赠人 / 置顶人 的 VIP
+        if (isset($result['user']) && is_array($result['user'])) {
+            UserResource::attachVipSingle($result['user']);
+        }
+        if (!empty($result['clues'])) {
+            UserResource::attachVipInList($result['clues'], 'user');
+        }
+        if (!empty($result['reward_claims'])) {
+            UserResource::attachVipInList($result['reward_claims'], 'to_user');
+        }
+        if (!empty($result['donations'])) {
+            UserResource::attachVipInList($result['donations'], 'from_user');
+        }
+        if (!empty($result['boosts'])) {
+            UserResource::attachVipInList($result['boosts'], 'user');
+        }
+
         return $result;
+    }
+
+    /**
+     * 附近启事 (F1/F2/F3)
+     *
+     * 算法：矩形框预过滤（走索引）+ ST_Distance_Sphere 精确距离 + 距离/时效混合权重
+     *
+     * @param float $lat 用户纬度
+     * @param float $lng 用户经度
+     * @param float $radiusKm 查询半径(km)
+     * @param int $page
+     * @return array
+     */
+    public static function getNearby(float $lat, float $lng, float $radiusKm, int $page = 1, int $pageSize = 20): array
+    {
+        if (WalletSetting::getValue('nearby_enabled', '1') !== '1') {
+            return ['list' => [], 'page' => $page, 'page_size' => $pageSize, 'total' => 0, 'last_page' => 0];
+        }
+
+        // 全局最大半径兜底
+        $maxRadius = (float)WalletSetting::getValue('nearby_max_radius_km', '500');
+        $radiusKm = min(max(0.1, $radiusKm), $maxRadius);
+
+        // 权重配置
+        $distW = (float)WalletSetting::getValue('nearby_distance_weight', '0.6');
+        $recW  = (float)WalletSetting::getValue('nearby_recency_weight', '0.4');
+        $decayDays = max(1, (int)WalletSetting::getValue('nearby_recency_decay_days', '30'));
+
+        // 纬度 1 度 ≈ 111km；经度 1 度 ≈ cos(lat)*111km
+        $latDelta = $radiusKm / 111.0;
+        $lngDelta = $radiusKm / max(0.01, cos(deg2rad($lat)) * 111.0);
+
+        $minLat = $lat - $latDelta;
+        $maxLat = $lat + $latDelta;
+        $minLng = $lng - $lngDelta;
+        $maxLng = $lng + $lngDelta;
+
+        $pageSize = min(50, max(1, $pageSize));
+        $offset   = ($page - 1) * $pageSize;
+
+        // 取已发布 + 公开 + 经纬度在框内的帖子
+        // 用户在矩形内 → 精确算距离 → HAVING <= radiusKm
+        // 排序公式：distScore * distW + recScore * recW
+        //   distScore = 1 - dist/radius（0..1，越近越高）
+        //   recScore  = 1 / (1 + days_since_lost / decayDays)（越新越高）
+        $sql = "
+            SELECT SQL_CALC_FOUND_ROWS p.*,
+                ST_Distance_Sphere(POINT(p.lost_longitude, p.lost_latitude), POINT(:lng, :lat))/1000 AS distance_km
+            FROM posts p
+            WHERE p.status = 1
+              AND p.visibility = 1
+              AND p.lost_longitude IS NOT NULL
+              AND p.lost_latitude IS NOT NULL
+              AND p.lost_longitude BETWEEN :minLng AND :maxLng
+              AND p.lost_latitude BETWEEN :minLat AND :maxLat
+            HAVING distance_km <= :radius
+            ORDER BY (
+                (1 - distance_km / :radius) * :distW
+                + (1 / (1 + GREATEST(DATEDIFF(NOW(), p.lost_at), 0) / :decayDays)) * :recW
+            ) DESC
+            LIMIT {$offset}, {$pageSize}
+        ";
+
+        $bindings = [
+            ':lat'       => $lat,
+            ':lng'       => $lng,
+            ':minLat'    => $minLat,
+            ':maxLat'    => $maxLat,
+            ':minLng'    => $minLng,
+            ':maxLng'    => $maxLng,
+            ':radius'    => $radiusKm,
+            ':distW'     => $distW,
+            ':recW'      => $recW,
+            ':decayDays' => $decayDays,
+        ];
+
+        $rows = Db::query($sql, $bindings);
+        $total = (int)Db::query('SELECT FOUND_ROWS() as cnt')[0]['cnt'];
+
+        // 补充 user + images（批量查避免 N+1）
+        $postIds = array_column($rows, 'id');
+        $userIds = array_column($rows, 'user_id');
+        $usersIndexed = [];
+        $imagesIndexed = [];
+        if (!empty($userIds)) {
+            $us = Db::table('users')->whereIn('id', array_values(array_unique($userIds)))
+                ->field('id,nickname,avatar,user_code,user_type')->select()->toArray();
+            foreach ($us as $u) $usersIndexed[(int)$u['id']] = $u;
+        }
+        if (!empty($postIds)) {
+            $imgs = Db::table('post_images')->whereIn('post_id', $postIds)
+                ->where('sort_order', 0)
+                ->field('post_id,image_url,thumb_url')
+                ->select()->toArray();
+            foreach ($imgs as $im) $imagesIndexed[(int)$im['post_id']][] = $im;
+        }
+
+        $list = [];
+        foreach ($rows as $row) {
+            $row['user']   = $usersIndexed[(int)$row['user_id']] ?? null;
+            $row['images'] = $imagesIndexed[(int)$row['id']] ?? [];
+            if (PostCategory::isMinor((int)$row['category'])) {
+                $row = self::maskChildInfo($row);
+            }
+            $list[] = $row;
+        }
+
+        UserResource::attachVipInList($list, 'user');
+
+        return [
+            'list'      => $list,
+            'page'      => $page,
+            'page_size' => $pageSize,
+            'total'     => $total,
+            'last_page' => (int)ceil($total / $pageSize),
+        ];
     }
 
     /**

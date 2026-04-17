@@ -41,6 +41,17 @@ Route::group('', function () {
     Route::post('post/update', 'Post/update');
     Route::get('post/mine', 'Post/mine');
     Route::post('post/updateStatus', 'Post/updateStatus');
+    Route::get('post/nearby', 'Post/nearby');
+
+    // 找回故事
+    Route::post('post/markFound', 'FoundStory/markFound');
+    Route::post('post/found-story', 'FoundStory/submit');
+    Route::get('post/found-stories', 'FoundStory/list');
+    Route::get('post/found-story', 'FoundStory/detail');
+
+    // 用户定位
+    Route::post('user/location', 'Post/updateLocation');
+    Route::get('user/location', 'Post/myLocation');
 
     // 线索
     Route::post('clue/create', 'Clue/create');
@@ -126,6 +137,18 @@ Route::group('', function () {
     Route::post('red-packet/send', 'RedPacket/send');
     Route::post('red-packet/claim', 'RedPacket/claim');
     Route::get('red-packet/detail', 'RedPacket/detail');
+
+    // VIP
+    Route::get('vip/levels', 'Vip/levels');
+    Route::get('vip/my', 'Vip/my');
+    Route::post('vip/purchase', 'Vip/purchase');
+    Route::get('vip/orders', 'Vip/orders');
+
+    // 抽奖
+    Route::get('lottery/info', 'Lottery/info');
+    Route::post('lottery/draw', 'Lottery/draw');
+    Route::get('lottery/logs', 'Lottery/logs');
+    Route::get('lottery/recent', 'Lottery/recent');
 
     // 点赞
     Route::post('like/toggle', 'Like/toggle');

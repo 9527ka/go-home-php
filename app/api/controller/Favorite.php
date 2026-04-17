@@ -7,6 +7,7 @@ use app\common\enum\ErrorCode;
 use app\common\exception\BusinessException;
 use app\common\model\Favorite as FavoriteModel;
 use app\common\model\Post as PostModel;
+use app\common\service\UserResource;
 use think\Response;
 
 class Favorite extends BaseApi
@@ -76,6 +77,8 @@ class Favorite extends BaseApi
                 $posts[] = $arr;
             }
         }
+
+        UserResource::attachVipInList($posts, 'user');
 
         return $this->successPage([
             'list'      => $posts,

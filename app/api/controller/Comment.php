@@ -9,6 +9,7 @@ use app\common\model\Post as PostModel;
 use app\common\model\Like as LikeModel;
 use app\common\model\Notification;
 use app\common\service\PostService;
+use app\common\service\UserResource;
 use think\facade\Db;
 use think\facade\Log;
 use think\Response;
@@ -108,8 +109,15 @@ class Comment extends BaseApi
 
         // 返回带用户信息的评论
         $comment = CommentModel::with(['user', 'replyToUser'])->find($comment->id);
+        $commentArr = $comment->toArray();
+        if (isset($commentArr['user']) && is_array($commentArr['user'])) {
+            UserResource::attachVipSingle($commentArr['user']);
+        }
+        if (isset($commentArr['reply_to_user']) && is_array($commentArr['reply_to_user'])) {
+            UserResource::attachVipSingle($commentArr['reply_to_user']);
+        }
 
-        return $this->success($comment, '评论成功');
+        return $this->success($commentArr, '评论成功');
     }
 
     /**
@@ -190,6 +198,15 @@ class Comment extends BaseApi
             $result[] = $arr;
         }
 
+        // 附加评论发表者 / 被回复者 的 VIP（含 reply_preview 嵌套）
+        UserResource::attachVipInListMulti($result, ['user', 'reply_to_user']);
+        foreach ($result as &$r) {
+            if (!empty($r['reply_preview'])) {
+                UserResource::attachVipInListMulti($r['reply_preview'], ['user', 'reply_to_user']);
+            }
+        }
+        unset($r);
+
         return $this->successPage([
             'list'      => $result,
             'page'      => $list->currentPage(),
@@ -235,6 +252,9 @@ class Comment extends BaseApi
             $arr['is_liked'] = in_array($item->id, $likedIds);
             $result[] = $arr;
         }
+
+        // 附加评论者 / 被回复者 VIP
+        UserResource::attachVipInListMulti($result, ['user', 'reply_to_user']);
 
         return $this->successPage([
             'list'      => $result,

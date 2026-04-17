@@ -10,6 +10,7 @@ use app\common\model\GroupMember;
 use app\common\model\GroupMessage;
 use app\common\model\User;
 use app\common\service\GroupSystemMessageService;
+use app\common\service\UserResource;
 use think\facade\Db;
 use think\Response;
 
@@ -184,6 +185,8 @@ class Group extends BaseApi
                 'joined_at' => $m['joined_at'],
             ];
         }, $members);
+
+        UserResource::attachVipByUserIdKey($memberList, 'user_id', 'vip');
 
         return $this->success([
             'group'   => $group->toArray(),
@@ -854,6 +857,8 @@ class Group extends BaseApi
         $messages = $query->limit($limit)->select()->toArray();
         $hasMore = count($messages) === $limit;
         $messages = array_reverse($messages);
+
+        UserResource::attachVipInList($messages, 'user');
 
         return $this->success([
             'list'     => $messages,

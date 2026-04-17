@@ -117,23 +117,31 @@ class RedPacketHandler
             return;
         }
 
+        $senderVipLevel = (string)($packet['sender_vip_level'] ?? 'normal');
+
         $broadcastData = [
-            'type'           => 'red_packet',
-            'red_packet_id'  => $redPacketId,
-            'user_id'        => $connection->userId,
-            'nickname'       => $connection->userInfo['nickname'] ?? '',
-            'avatar'         => $connection->userInfo['avatar'] ?? '',
-            'greeting'       => $greeting,
-            'total_count'    => (int)$packet['total_count'],
-            'target_type'    => $targetType,
-            'target_id'      => (int)$packet['target_id'],
-            'created_at'     => date('Y-m-d H:i:s'),
+            'type'             => 'red_packet',
+            'red_packet_id'    => $redPacketId,
+            'user_id'          => $connection->userId,
+            'nickname'         => $connection->userInfo['nickname'] ?? '',
+            'avatar'           => $connection->userInfo['avatar'] ?? '',
+            'greeting'         => $greeting,
+            'total_count'      => (int)$packet['total_count'],
+            'target_type'      => $targetType,
+            'target_id'        => (int)$packet['target_id'],
+            'sender_vip_level' => $senderVipLevel,
+            'created_at'       => date('Y-m-d H:i:s'),
         ];
         if ($clientMsgId !== null && $clientMsgId !== '') {
             $broadcastData['client_msg_id'] = $clientMsgId;
         }
 
-        $contentJson = json_encode(['red_packet_id' => $redPacketId, 'greeting' => $greeting], JSON_UNESCAPED_UNICODE);
+        // 内容 JSON 中也嵌入 sender_vip_level，让历史消息也能正确渲染皮肤
+        $contentJson = json_encode([
+            'red_packet_id'    => $redPacketId,
+            'greeting'         => $greeting,
+            'sender_vip_level' => $senderVipLevel,
+        ], JSON_UNESCAPED_UNICODE);
 
         if ($targetType === 1) {
             // 公共聊天室

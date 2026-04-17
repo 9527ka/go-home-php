@@ -24,6 +24,10 @@ class WalletTransactionType
     const BOUNTY_PAY        = 14; // 悬赏发放(支出)
     const BOUNTY_INCOME     = 15; // 悬赏收入
     const BOUNTY_REFUND     = 16; // 悬赏退还
+    const VIP_PURCHASE      = 17; // VIP 购买(支出)
+    const LOTTERY_COST      = 18; // 抽奖消耗(支出)
+    const LOTTERY_REWARD    = 19; // 抽奖中奖(收入)
+    const FOUND_STORY_REWARD = 20; // 找回故事奖励(收入)
 
     const NAMES = [
         self::RECHARGE          => '充值',
@@ -42,6 +46,10 @@ class WalletTransactionType
         self::BOUNTY_PAY        => '悬赏发放',
         self::BOUNTY_INCOME     => '悬赏收入',
         self::BOUNTY_REFUND     => '悬赏退还',
+        self::VIP_PURCHASE      => 'VIP购买',
+        self::LOTTERY_COST      => '抽奖消耗',
+        self::LOTTERY_REWARD    => '抽奖中奖',
+        self::FOUND_STORY_REWARD => '找回故事奖励',
     ];
 
     /**
@@ -56,6 +64,8 @@ class WalletTransactionType
         self::REWARD_RELEASE,
         self::BOUNTY_INCOME,
         self::BOUNTY_REFUND,
+        self::LOTTERY_REWARD,
+        self::FOUND_STORY_REWARD,
     ];
 
     /**

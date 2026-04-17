@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace app\api\controller;
 
 use app\common\model\ChatMessage;
+use app\common\service\UserResource;
 use think\Response;
 
 class Chat extends BaseApi
@@ -31,6 +32,8 @@ class Chat extends BaseApi
 
         // 反转使消息按时间正序
         $messages = array_reverse($messages);
+
+        UserResource::attachVipInList($messages, 'user');
 
         return $this->success([
             'list'     => $messages,

@@ -8,6 +8,7 @@ use app\common\model\Friendship;
 use app\common\model\PrivateMessage;
 use app\common\model\GroupMember;
 use app\common\model\GroupMessage;
+use app\common\service\UserResource;
 use think\Response;
 use think\facade\Db;
 
@@ -53,6 +54,10 @@ class Pm extends BaseApi
 
         $messages = $query->limit($limit)->select()->toArray();
         $messages = array_reverse($messages);
+
+        // 附加 from_user 的 VIP；并为 from_id 单独补 sender_vip（兼容无嵌套的情况）
+        UserResource::attachVipInList($messages, 'from_user');
+        UserResource::attachVipByUserIdKey($messages, 'from_id', 'sender_vip');
 
         return $this->success([
             'list'     => $messages,
@@ -104,6 +109,7 @@ class Pm extends BaseApi
                 'name'          => $friend->nickname,
                 'avatar'        => $friend->avatar,
                 'user_type'     => $friend->user_type ?? 0,
+                'target_user_id' => $friendId,
                 'last_message'  => $lastMsg->content,
                 'last_msg_type' => $lastMsg->msg_type,
                 'last_msg_time' => $lastMsg->created_at,
@@ -155,6 +161,9 @@ class Pm extends BaseApi
         usort($conversations, function ($a, $b) {
             return strcmp($b['last_msg_time'], $a['last_msg_time']);
         });
+
+        // 给私聊会话附加对方 VIP
+        UserResource::attachVipByUserIdKey($conversations, 'target_user_id', 'target_vip');
 
         return $this->success(['list' => $conversations]);
     }

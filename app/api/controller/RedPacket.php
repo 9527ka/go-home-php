@@ -7,6 +7,8 @@ use app\common\enum\ErrorCode;
 use app\common\model\RedPacket as RedPacketModel;
 use app\common\model\RedPacketClaim;
 use app\common\model\User;
+use app\common\model\VipLevel;
+use app\common\service\UserResource;
 use app\common\service\WalletService;
 use think\facade\Db;
 use think\Response;
@@ -48,6 +50,10 @@ class RedPacket extends BaseApi
             $data = $data->toArray();
             $user = User::field('id,nickname,avatar')->find($data['user_id']);
             $data['user'] = $user ? $user->toArray() : null;
+            if (is_array($data['user'])) {
+                UserResource::attachVipSingle($data['user']);
+            }
+            self::attachSenderVipSkin($data);
         }
 
         return $this->success($data, '红包已发送');
@@ -122,10 +128,32 @@ class RedPacket extends BaseApi
         }
         unset($claim);
 
+        // 附加发送者 + 所有领取者 的 VIP
+        if (isset($data['user']) && is_array($data['user'])) {
+            UserResource::attachVipSingle($data['user']);
+        }
+        UserResource::attachVipInList($claims, 'user');
+        if ($myClaim && isset($myClaim['user']) && is_array($myClaim['user'])) {
+            UserResource::attachVipSingle($myClaim['user']);
+        }
+        self::attachSenderVipSkin($data);
+
         $data['claims'] = $claims;
         $data['my_claim'] = $myClaim;
         $data['best_user_id'] = $bestClaim ? $bestClaim['user_id'] : null;
 
         return $this->success($data);
+    }
+
+    /**
+     * 根据红包 sender_vip_level 快照查询对应皮肤/动效配置
+     * 附加到 $data 的 sender_skin_url / sender_effect_key 字段
+     */
+    protected static function attachSenderVipSkin(array &$data): void
+    {
+        $levelKey = (string)($data['sender_vip_level'] ?? 'normal');
+        $level = VipLevel::findByKey($levelKey);
+        $data['sender_skin_url']   = $level ? (string)$level->red_packet_skin_url   : '';
+        $data['sender_effect_key'] = $level ? (string)$level->red_packet_effect_key : 'none';
     }
 }

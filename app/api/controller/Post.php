@@ -4,7 +4,9 @@ declare(strict_types=1);
 namespace app\api\controller;
 
 use app\api\validate\PostValidate;
+use app\common\enum\ErrorCode;
 use app\common\enum\PostCategory;
+use app\common\service\LocationService;
 use app\common\service\PostService;
 use think\Response;
 
@@ -100,6 +102,56 @@ class Post extends BaseApi
         $data = PostService::getMine($this->getUserId(), $params);
 
         return $this->successPage($data);
+    }
+
+    /**
+     * 附近启事
+     * GET /api/post/nearby?lat=&lng=&radius=&page=
+     * lat/lng 可选：未传则用用户上次定位（GPS 或 IP 兜底）
+     */
+    public function nearby(): Response
+    {
+        $lat = $this->request->get('lat');
+        $lng = $this->request->get('lng');
+        $radius = (float)$this->request->get('radius', 50);
+        $page = max(1, (int)$this->request->get('page', 1));
+        $pageSize = min(50, max(1, (int)$this->request->get('page_size', 20)));
+
+        if ($lat === null || $lng === null || $lat === '' || $lng === '') {
+            $loc = LocationService::getUserLocation($this->getUserId());
+            if ($loc['lat'] === null || $loc['lng'] === null) {
+                return $this->error(ErrorCode::PARAM_MISSING, '缺少经纬度且未授权定位');
+            }
+            $lat = $loc['lat'];
+            $lng = $loc['lng'];
+        }
+
+        $data = PostService::getNearby((float)$lat, (float)$lng, $radius, $page, $pageSize);
+        return $this->successPage($data);
+    }
+
+    /**
+     * 上报用户 GPS 位置
+     * POST /api/user/location   { lat, lng }
+     */
+    public function updateLocation(): Response
+    {
+        $lat = $this->request->post('lat');
+        $lng = $this->request->post('lng');
+        if ($lat === null || $lng === null) {
+            return $this->error(ErrorCode::PARAM_MISSING);
+        }
+        LocationService::updateFromGps($this->getUserId(), (float)$lat, (float)$lng);
+        return $this->success(null, '位置已更新');
+    }
+
+    /**
+     * 查询当前用户定位
+     * GET /api/user/location
+     */
+    public function myLocation(): Response
+    {
+        return $this->success(LocationService::getUserLocation($this->getUserId()));
     }
 
     /**

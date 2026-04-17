@@ -83,4 +83,26 @@ Route::group('', function () {
     Route::post('sign/task/update', 'SignManage/updateTask');
     Route::post('sign/toggle', 'SignManage/toggle');
 
+    // VIP 管理
+    Route::get('vip/levels', 'VipManage/levels');
+    Route::post('vip/level/update', 'VipManage/updateLevel');
+    Route::get('vip/orders', 'VipManage/orders');
+    Route::get('vip/users', 'VipManage/users');
+    Route::post('vip/user/grant', 'VipManage/grantUser');
+
+    // 抽奖管理
+    Route::get('lottery/pools', 'LotteryManage/pools');
+    Route::post('lottery/pool/update', 'LotteryManage/updatePool');
+    Route::get('lottery/prizes', 'LotteryManage/prizes');
+    Route::post('lottery/prize/create', 'LotteryManage/createPrize');
+    Route::post('lottery/prize/update', 'LotteryManage/updatePrize');
+    Route::post('lottery/prize/delete', 'LotteryManage/deletePrize');
+    Route::get('lottery/logs', 'LotteryManage/logs');
+    Route::get('lottery/stats', 'LotteryManage/stats');
+
+    // 找回故事审核
+    Route::get('found-story/list', 'FoundStoryManage/list');
+    Route::post('found-story/approve', 'FoundStoryManage/approve');
+    Route::post('found-story/reject', 'FoundStoryManage/reject');
+
 })->middleware(\app\admin\middleware\AdminAuth::class);

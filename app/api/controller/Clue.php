@@ -10,6 +10,7 @@ use app\common\exception\BusinessException;
 use app\common\model\Clue as ClueModel;
 use app\common\model\Post as PostModel;
 use app\common\service\NotifyService;
+use app\common\service\UserResource;
 use think\facade\Db;
 use think\facade\Log;
 use think\Response;
@@ -121,8 +122,11 @@ class Clue extends BaseApi
             ->order('created_at', 'desc')
             ->paginate($pageSize, false, ['page' => $page]);
 
+        $items = array_map(fn($x) => $x->toArray(), $list->items());
+        UserResource::attachVipInList($items, 'user');
+
         return $this->successPage([
-            'list'      => $list->items(),
+            'list'      => $items,
             'page'      => $list->currentPage(),
             'page_size' => $list->listRows(),
             'total'     => $list->total(),
