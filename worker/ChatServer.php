@@ -40,7 +40,8 @@ use worker\Chat\PublicChatHandler;
 use worker\Chat\PrivateChatHandler;
 use worker\Chat\GroupChatHandler;
 use worker\Chat\RedPacketHandler;
-use worker\Chat\CallSignalingHandler;
+// 私聊语音通话已切换到腾讯云 TUICallKit（客户端 SDK 内置信令），
+// 不再需要服务端 CallSignalingHandler
 
 // ===== 引导 ThinkPHP 框架 =====
 (new think\App())->initialize();
@@ -62,7 +63,6 @@ $publicHandler    = new PublicChatHandler($cm);
 $privateHandler   = new PrivateChatHandler($cm);
 $groupHandler     = new GroupChatHandler($cm);
 $redPacketHandler = new RedPacketHandler($cm);
-$callHandler      = new CallSignalingHandler($cm);
 
 // =====================================================================
 //  辅助函数
@@ -185,9 +185,6 @@ $ws->onMessage = function (TcpConnection $connection, $data) use (
             break;
         case 'red_packet':
             $redPacketHandler->handle($connection, $msg);
-            break;
-        case 'call_signal':
-            $callHandler->handle($connection, $msg);
             break;
         case 'ping':
             $connection->lastActiveTime = time();

@@ -155,7 +155,7 @@ class PostService
         $query = Post::where('posts.status', PostStatus::ACTIVE)
             ->alias('posts')
             ->leftJoin('post_boosts pb', "pb.post_id = posts.id AND pb.status = 1 AND pb.expire_at > '{$now}'")
-            ->field('posts.*, CASE WHEN pb.id IS NOT NULL THEN 1 ELSE 0 END as is_boosted')
+            ->field('posts.*, CASE WHEN MAX(pb.id) IS NOT NULL THEN 1 ELSE 0 END as is_boosted')
             ->group('posts.id')
             // 可见性过滤：只显示公开的，或自己发布的私密帖
             ->where(function ($q) use ($userId) {
